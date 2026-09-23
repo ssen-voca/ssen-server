@@ -1,0 +1,53 @@
+name: "🐛 버그 수정 (bugfix / hotfix)"
+description: "버그를 등록합니다. 발견 위치에 따라 브랜치가 결정됩니다."
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: where
+    attributes:
+      label: 발견 위치
+      description: "이 값이 어느 브랜치에서 고칠지를 결정합니다."
+      options:
+        - "개발 중인 코드(develop) — 아직 배포 전  →  bugfix 브랜치"
+        - "배포 준비 중(release)  →  release 브랜치에서 바로 수정"
+        - "배포된 버전(main) — 긴급  →  hotfix 브랜치"
+    validations:
+      required: true
+  - type: textarea
+    id: describe
+    attributes:
+      label: 버그 내용
+      description: 무엇이 잘못 동작하나요?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 재현 방법
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대한 동작
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: 환경
+      value: |
+        - 기기:
+        - OS / 버전:
+        - 앱 또는 서버 버전:
+  - type: input
+    id: branch
+    attributes:
+      label: 브랜치명
+      description: "형식: bugfix/{이슈번호}-{내용} 또는 hotfix/{이슈번호}-{내용}"
+      placeholder: "bugfix/27-excel-parse-error"

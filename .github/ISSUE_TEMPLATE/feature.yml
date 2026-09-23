@@ -1,0 +1,46 @@
+name: "✨ 기능 개발 (feature)"
+description: "새 기능, 문서, CI·빌드 설정, 리팩터링 작업을 등록합니다."
+title: "[feature] "
+labels: ["feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        기능이 아닌 작업(문서·설정·리팩터링)도 이 템플릿을 씁니다.
+        성격을 나타내는 라벨(`documentation` 등)을 추가로 붙여주세요.
+  - type: textarea
+    id: summary
+    attributes:
+      label: 작업 내용
+      description: 무엇을 만드는지 한두 문장으로 적어주세요.
+      placeholder: "차시 목록에서 차시를 선택하면 해당 차시의 단어 목록으로 이동한다."
+    validations:
+      required: true
+  - type: textarea
+    id: todo
+    attributes:
+      label: 할 일
+      description: 체크박스로 나눠주세요.
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: 완료 조건
+      description: 무엇이 되면 이 이슈를 닫을 수 있나요?
+    validations:
+      required: true
+  - type: input
+    id: branch
+    attributes:
+      label: 브랜치명
+      description: "이슈 번호가 나온 뒤 채웁니다. 형식: feature/{이슈번호}-{기능명}"
+      placeholder: "feature/12-lesson-list"
+  - type: textarea
+    id: etc
+    attributes:
+      label: 참고 사항
+      description: 참고 링크, 디자인 시안, 관련 이슈 등
