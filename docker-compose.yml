@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ssen-db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-ssen}
+      POSTGRES_USER: ${DB_USERNAME:-ssen}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ssen}
+      TZ: Asia/Seoul
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - ssen-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-ssen} -d ${DB_NAME:-ssen}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  ssen-db-data:
