@@ -1,5 +1,6 @@
 package com.ssen.voca.user;
 
+import com.ssen.voca.auth.InvalidTokenException;
 import com.ssen.voca.user.dto.ClassCodeRequest;
 import com.ssen.voca.user.dto.UserResponse;
 import jakarta.validation.Valid;
@@ -36,6 +37,7 @@ public class UserController {
 
 	private AppUser findCurrentUser(Authentication authentication) {
 		Long userId = Long.valueOf(authentication.getName());
-		return appUserRepository.findById(userId).orElseThrow();
+		return appUserRepository.findById(userId)
+				.orElseThrow(() -> new InvalidTokenException("존재하지 않는 사용자입니다."));
 	}
 }

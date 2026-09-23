@@ -14,6 +14,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuthService {
 
+	// ponytail: dummy BCrypt hash so a non-existent email still pays the encoder cost,
+	// keeping login timing constant regardless of account existence.
+	private static final String DUMMY_PASSWORD_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
 	private final AppUserRepository appUserRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtService jwtService;
@@ -37,10 +41,11 @@ public class AuthService {
 	}
 
 	public TokenResponse login(LoginRequest request) {
-		AppUser user = appUserRepository.findByEmail(request.email())
-				.orElseThrow(InvalidCredentialsException::new);
+		AppUser user = appUserRepository.findByEmail(request.email()).orElse(null);
+		String passwordHash = user != null ? user.getPasswordHash() : DUMMY_PASSWORD_HASH;
 
-		if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+		boolean passwordMatches = passwordEncoder.matches(request.password(), passwordHash);
+		if (user == null || !passwordMatches) {
 			throw new InvalidCredentialsException();
 		}
 

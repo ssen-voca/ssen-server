@@ -60,6 +60,20 @@ class UserControllerTest {
 	}
 
 	@Test
+	void meWithRefreshTokenAsBearerReturns401() throws Exception {
+		MvcResult result = mockMvc.perform(post("/api/auth/signup")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(
+								new SignupRequest("김학생", "refresh-as-bearer@example.com", "password123"))))
+				.andReturn();
+		String refreshToken = objectMapper.readTree(result.getResponse().getContentAsString())
+				.get("refreshToken").asText();
+
+		mockMvc.perform(get("/api/users/me").header("Authorization", "Bearer " + refreshToken))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
 	void updateClassCodeThenMeReflectsIt() throws Exception {
 		String accessToken = signupAndGetAccessToken("classcode@example.com");
 
