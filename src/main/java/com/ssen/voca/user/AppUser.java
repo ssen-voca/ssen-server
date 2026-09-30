@@ -23,11 +23,11 @@ public class AppUser {
 	@Column(nullable = false, length = 50)
 	private String name;
 
-	@Column(nullable = false, unique = true)
-	private String email;
+	@Column(name = "name_key", nullable = false, length = 50)
+	private String nameKey;
 
-	@Column(name = "password_hash", nullable = false)
-	private String passwordHash;
+	@Column(name = "pin_hash", nullable = false)
+	private String pinHash;
 
 	@Column(name = "class_code", length = 50)
 	private String classCode;
@@ -38,10 +38,10 @@ public class AppUser {
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private LocalDateTime createdAt;
 
-	public AppUser(String name, String email, String passwordHash) {
+	public AppUser(String name, String nameKey, String pinHash) {
 		this.name = name;
-		this.email = email;
-		this.passwordHash = passwordHash;
+		this.nameKey = nameKey;
+		this.pinHash = pinHash;
 		this.role = "STUDENT";
 		this.createdAt = LocalDateTime.now();
 	}

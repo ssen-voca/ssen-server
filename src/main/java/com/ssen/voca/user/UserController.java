@@ -24,7 +24,7 @@ public class UserController {
 	@GetMapping
 	public UserResponse me(Authentication authentication) {
 		AppUser user = findCurrentUser(authentication);
-		return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getClassCode(), user.getRole());
+		return new UserResponse(user.getId(), user.getName(), user.getClassCode(), user.getRole());
 	}
 
 	@PatchMapping("/class-code")
@@ -32,7 +32,7 @@ public class UserController {
 		AppUser user = findCurrentUser(authentication);
 		user.updateClassCode(request.classCode());
 		appUserRepository.save(user);
-		return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getClassCode(), user.getRole());
+		return new UserResponse(user.getId(), user.getName(), user.getClassCode(), user.getRole());
 	}
 
 	private AppUser findCurrentUser(Authentication authentication) {
