@@ -24,50 +24,88 @@ class AuthServiceTest {
 
 	@Test
 	void signupCreatesUserAndReturnsTokens() {
-		TokenResponse tokens = authService.signup(new SignupRequest("김학생", "new-student@example.com", "password123"));
+		TokenResponse tokens = authService.signup(new SignupRequest("서비스가입", "1234"));
 
-		assertThat(jwtService.parseAccessToken(tokens.accessToken()).get("email")).isEqualTo("new-student@example.com");
+		assertThat(jwtService.parseAccessToken(tokens.accessToken()).get("name")).isEqualTo("서비스가입");
 		assertThat(jwtService.parseRefreshToken(tokens.refreshToken())).isNotNull();
 	}
 
 	@Test
-	void signupWithDuplicateEmailThrows() {
-		authService.signup(new SignupRequest("김학생", "dup@example.com", "password123"));
+	void signupWithSameNameAndPinThrows() {
+		authService.signup(new SignupRequest("서비스중복", "1234"));
 
-		assertThatThrownBy(() -> authService.signup(new SignupRequest("이학생", "dup@example.com", "password456")))
-				.isInstanceOf(EmailAlreadyExistsException.class);
+		assertThatThrownBy(() -> authService.signup(new SignupRequest("서비스중복", "1234")))
+				.isInstanceOf(StudentAlreadyExistsException.class);
 	}
 
 	@Test
-	void loginWithCorrectPasswordReturnsTokens() {
-		authService.signup(new SignupRequest("김학생", "login@example.com", "password123"));
+	void signupWithSameNameAndDifferentPinCreatesSeparateAccounts() {
+		TokenResponse first = authService.signup(new SignupRequest("서비스동명", "1111"));
+		TokenResponse second = authService.signup(new SignupRequest("서비스동명", "2222"));
 
-		TokenResponse tokens = authService.login(new LoginRequest("login@example.com", "password123"));
+		assertThat(jwtService.parseAccessToken(first.accessToken()).getSubject())
+				.isNotEqualTo(jwtService.parseAccessToken(second.accessToken()).getSubject());
+	}
+
+	@Test
+	void signupNormalizesNameWhitespaceAndCase() {
+		authService.signup(new SignupRequest(" 서비스  민준 ", "1234"));
+		authService.signup(new SignupRequest("Service  Kim", "1234"));
+
+		assertThatThrownBy(() -> authService.signup(new SignupRequest("서비스 민준", "1234")))
+				.isInstanceOf(StudentAlreadyExistsException.class);
+		assertThatThrownBy(() -> authService.signup(new SignupRequest("  sERVICE kIM ", "1234")))
+				.isInstanceOf(StudentAlreadyExistsException.class);
+	}
+
+	@Test
+	void loginWithCorrectPinReturnsTokens() {
+		authService.signup(new SignupRequest("서비스로그인", "1234"));
+
+		TokenResponse tokens = authService.login(new LoginRequest("서비스로그인", "1234"));
 
 		assertThat(jwtService.parseAccessToken(tokens.accessToken())).isNotNull();
 	}
 
 	@Test
-	void loginWithWrongPasswordThrows() {
-		authService.signup(new SignupRequest("김학생", "wrongpw@example.com", "password123"));
+	void loginWithWrongPinThrows() {
+		authService.signup(new SignupRequest("서비스오답", "1234"));
 
-		assertThatThrownBy(() -> authService.login(new LoginRequest("wrongpw@example.com", "wrong-password")))
+		assertThatThrownBy(() -> authService.login(new LoginRequest("서비스오답", "9999")))
 				.isInstanceOf(InvalidCredentialsException.class);
 	}
 
 	@Test
+	void loginWithUnknownNameThrows() {
+		assertThatThrownBy(() -> authService.login(new LoginRequest("서비스없는사람", "1234")))
+				.isInstanceOf(InvalidCredentialsException.class);
+	}
+
+	@Test
+	void loginPicksTheAccountWhoseHashMatches() {
+		TokenResponse first = authService.signup(new SignupRequest("서비스동명로그인", "1111"));
+		TokenResponse second = authService.signup(new SignupRequest("서비스동명로그인", "2222"));
+
+		String secondLogin = authService.login(new LoginRequest("서비스동명로그인", "2222")).accessToken();
+
+		assertThat(jwtService.parseAccessToken(secondLogin).getSubject())
+				.isEqualTo(jwtService.parseAccessToken(second.accessToken()).getSubject())
+				.isNotEqualTo(jwtService.parseAccessToken(first.accessToken()).getSubject());
+	}
+
+	@Test
 	void refreshWithValidRefreshTokenReturnsNewAccessToken() {
-		TokenResponse tokens = authService.signup(new SignupRequest("김학생", "refresh@example.com", "password123"));
+		TokenResponse tokens = authService.signup(new SignupRequest("서비스갱신", "1234"));
 
 		var accessTokenResponse = authService.refresh(new RefreshRequest(tokens.refreshToken()));
 
-		assertThat(jwtService.parseAccessToken(accessTokenResponse.accessToken()).get("email"))
-				.isEqualTo("refresh@example.com");
+		assertThat(jwtService.parseAccessToken(accessTokenResponse.accessToken()).get("name"))
+				.isEqualTo("서비스갱신");
 	}
 
 	@Test
 	void refreshWithAccessTokenThrows() {
-		TokenResponse tokens = authService.signup(new SignupRequest("김학생", "badrefresh@example.com", "password123"));
+		TokenResponse tokens = authService.signup(new SignupRequest("서비스갱신오류", "1234"));
 
 		assertThatThrownBy(() -> authService.refresh(new RefreshRequest(tokens.accessToken())))
 				.isInstanceOf(InvalidTokenException.class);

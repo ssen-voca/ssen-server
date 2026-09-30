@@ -13,12 +13,12 @@ class JwtServiceTest {
 
 	@Test
 	void generatesAndParsesAccessToken() {
-		String token = jwtService.generateAccessToken(1L, "student@example.com");
+		String token = jwtService.generateAccessToken(1L, "김학생");
 
 		Claims claims = jwtService.parseAccessToken(token);
 
 		assertThat(claims.getSubject()).isEqualTo("1");
-		assertThat(claims.get("email")).isEqualTo("student@example.com");
+		assertThat(claims.get("name")).isEqualTo("김학생");
 	}
 
 	@Test
@@ -40,7 +40,7 @@ class JwtServiceTest {
 
 	@Test
 	void rejectsAccessTokenAsRefreshToken() {
-		String accessToken = jwtService.generateAccessToken(1L, "student@example.com");
+		String accessToken = jwtService.generateAccessToken(1L, "김학생");
 
 		assertThatThrownBy(() -> jwtService.parseRefreshToken(accessToken))
 				.isInstanceOf(InvalidTokenException.class);

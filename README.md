@@ -36,6 +36,31 @@
 
 `src/main/resources/application-local.yml` 에 로컬 DB 접속 정보를 둡니다. (이 파일은 git에 올라가지 않습니다)
 
+## 인증 API
+
+학생은 **이름 + 휴대폰 번호 뒤 4자리**로 가입·로그인합니다. (이메일·비밀번호 없음)
+휴대폰 뒤 4자리는 경우의 수가 1만 개뿐인 약한 자격 증명이므로 서버가 시도 횟수를 제한합니다.
+
+| 메서드 | 경로 | 설명 |
+| --- | --- | --- |
+| POST | `/api/auth/signup` | 가입 `{name, phoneLast4}` → 201 `{accessToken, refreshToken}`. 같은 이름 + 같은 번호는 409 |
+| POST | `/api/auth/login` | 로그인 `{name, phoneLast4}` → 200 `{accessToken, refreshToken}`. 불일치는 401 |
+| POST | `/api/auth/refresh` | `{refreshToken}` → `{accessToken}` |
+| GET | `/api/users/me` | 내 정보 `{id, name, classCode, role}` (액세스 토큰 필요) |
+| PATCH | `/api/users/me/class-code` | 참여 코드 등록 `{classCode}` (액세스 토큰 필요) |
+
+- 이름은 앞뒤 공백 제거 · 연속 공백 1칸 · 소문자로 정규화해 같은 학생인지 판단합니다. 같은 이름의 다른 학생은 번호로 구분합니다.
+- 번호는 BCrypt 해시로만 저장하며 응답·로그에 남기지 않습니다.
+- 시도 제한: 이름 기준으로 가입 호출과 로그인 실패를 합쳐 5분 안에 5회가 되면 다음 시도는 429입니다. 로그인에 성공하면 초기화됩니다. (서버 1대 기준 메모리 방식 — `app.auth.max-attempts`, `app.auth.attempt-window-millis`)
+- 오류 응답은 항상 `{"message": "..."}` 형태입니다. 검증 실패는 400(첫 번째 오류 메시지), 본문 형식 오류도 400입니다.
+- 액세스 토큰 30분 · 리프레시 토큰 14일 (JWT, 무상태).
+
+### CORS
+
+`app.cors.allowed-origins`(쉼표 구분)에 등록한 출처만 `/api/**`를 브라우저에서 호출할 수 있습니다.
+`local` 프로필은 `http://localhost:8081`, `:8099`, `:19006`을 허용하고, 그 외에는 기본적으로 아무것도 허용하지 않습니다.
+운영에서는 환경 변수 `CORS_ALLOWED_ORIGINS`로 지정합니다. 허용되지 않은 출처의 요청(preflight 포함)은 403으로 거절됩니다.
+
 ## 앱
 
 클라이언트는 별도 저장소에 있습니다 → [ssen-app](https://github.com/ssen-voca/ssen-app)

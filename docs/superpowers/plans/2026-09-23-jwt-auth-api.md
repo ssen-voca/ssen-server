@@ -1,5 +1,7 @@
 # 계정·로그인 API (JWT) Implementation Plan
 
+> **[대체됨]** 이메일 + 비밀번호 로그인은 이슈 #7에서 이름 + 휴대폰 뒤 4자리 로그인으로 바뀌었습니다. 현재 동작은 README의 "인증 API"를 참고하세요. 이 문서는 당시 설계 기록으로 남겨둡니다.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 이메일+비밀번호 회원가입/로그인과 JWT(Access+Refresh) 인증, 참여코드 등록을 제공하는 API를 ssen-server에 구현한다.

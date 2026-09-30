@@ -29,11 +29,11 @@ public class JwtService {
 		this.refreshTokenTtlMillis = refreshTokenTtlMillis;
 	}
 
-	public String generateAccessToken(Long userId, String email) {
+	public String generateAccessToken(Long userId, String name) {
 		Date now = new Date();
 		return Jwts.builder()
 				.subject(String.valueOf(userId))
-				.claim("email", email)
+				.claim("name", name)
 				.issuedAt(now)
 				.expiration(new Date(now.getTime() + accessTokenTtlMillis))
 				.signWith(key)
