@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record ClassCodeRequest(
-		@NotBlank
+		@NotBlank(message = "참여 코드를 입력해 주세요")
 		@Size(max = 50, message = "참여 코드는 50자 이하로 입력해 주세요")
 		String classCode) {
 

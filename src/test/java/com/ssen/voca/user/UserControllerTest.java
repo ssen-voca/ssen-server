@@ -118,11 +118,9 @@ class UserControllerTest {
 	void whitespaceOnlyClassCodeReturns400() throws Exception {
 		String accessToken = signupAndGetAccessToken("유저코드공백");
 
-		// 기본 @NotBlank 메시지(로케일에 따라 달라지므로 값은 비교하지 않는다)가 {"message"}로 내려온다.
 		patchClassCode(accessToken, "   ")
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.message").isNotEmpty())
-				.andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.not("참여 코드는 50자 이하로 입력해 주세요")));
+				.andExpect(jsonPath("$.message").value("참여 코드를 입력해 주세요"));
 	}
 
 	@Test
