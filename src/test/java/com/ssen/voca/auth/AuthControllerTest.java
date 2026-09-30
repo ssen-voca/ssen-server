@@ -1,6 +1,7 @@
 package com.ssen.voca.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -97,6 +98,43 @@ class AuthControllerTest {
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(PIN_INVALID));
 		postJson("/api/auth/signup", "{\"name\":\"컨트롤러검증\"}")
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(PIN_INVALID));
+	}
+
+	@Test
+	void namesThatNormalizeToBlankReturn400() throws Exception {
+		for (String name : new String[] {"\u3000", " ", "\u200B", "\u200B\u3000\uFEFF\u2060 \u200C\u200D"}) {
+			auth("/api/auth/signup", name, "1234")
+					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(NAME_REQUIRED));
+			auth("/api/auth/login", name, "1234")
+					.andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(NAME_REQUIRED));
+		}
+	}
+
+	@Test
+	void nameThatGrowsPastFiftyWhenLowerCasedReturns400() throws Exception {
+		// U+0130(İ) 소문자화는 2글자가 되어 26자 → 52자
+		String name = "\u0130".repeat(26);
+
+		auth("/api/auth/signup", name, "1234")
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(NAME_TOO_LONG));
+		auth("/api/auth/login", name, "1234")
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(NAME_TOO_LONG));
+	}
+
+	@Test
+	void invisibleCharactersAreIgnoredForIdentityAndDisplayNameStaysNonEmpty() throws Exception {
+		String access = tokenFrom(auth("/api/auth/signup", "\u200B컨트롤러투명\u3000", "1234"), "accessToken");
+		auth("/api/auth/signup", "컨트롤러\u200B투명", "1234").andExpect(status().isConflict());
+
+		mockMvc.perform(get("/api/users/me")
+						.header("Authorization", "Bearer " + access))
+				.andExpect(jsonPath("$.name").value("컨트롤러투명"));
+	}
+
+	@Test
+	void blankAndTooLongNameReportsRequiredFirst() throws Exception {
+		auth("/api/auth/signup", " ".repeat(51), "1234")
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(NAME_REQUIRED));
 	}
 
 	@Test

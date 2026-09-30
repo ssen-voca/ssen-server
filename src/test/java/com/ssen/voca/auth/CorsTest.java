@@ -1,5 +1,6 @@
 package com.ssen.voca.auth;
 
+import static org.hamcrest.Matchers.equalToIgnoringCase;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -61,5 +62,16 @@ class CorsTest {
 						.content("{\"name\":\"코스없는사람\",\"phoneLast4\":\"1234\"}"))
 				.andExpect(status().isForbidden())
 				.andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+	}
+
+	@Test
+	void preflightForProtectedEndpointSucceedsWithoutToken() throws Exception {
+		mockMvc.perform(options("/api/users/me")
+						.header(HttpHeaders.ORIGIN, "http://localhost:8099")
+						.header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "GET")
+						.header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "authorization"))
+				.andExpect(status().isOk())
+				.andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:8099"))
+				.andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_HEADERS, equalToIgnoringCase("Authorization")));
 	}
 }

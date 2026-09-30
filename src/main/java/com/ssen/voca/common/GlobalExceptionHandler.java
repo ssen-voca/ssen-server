@@ -1,6 +1,7 @@
 package com.ssen.voca.common;
 
 import com.ssen.voca.auth.InvalidCredentialsException;
+import com.ssen.voca.auth.InvalidNameException;
 import com.ssen.voca.auth.InvalidTokenException;
 import com.ssen.voca.auth.StudentAlreadyExistsException;
 import com.ssen.voca.auth.TooManyAttemptsException;
@@ -10,6 +11,7 @@ import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -35,10 +37,21 @@ public class GlobalExceptionHandler {
 		return message(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
 	}
 
+	@ExceptionHandler(InvalidNameException.class)
+	public ResponseEntity<Map<String, String>> handleInvalidName(InvalidNameException e) {
+		return message(HttpStatus.BAD_REQUEST, e.getMessage());
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException e) {
 		String text = e.getBindingResult().getFieldErrors().stream()
-				.min(Comparator.comparingInt(error -> FIELD_ORDER.indexOf(error.getField())))
+				// 필드 순서 → 같은 필드면 제약 이름순 (NotBlank/NotNull이 Size/Pattern보다 앞). 모르는 필드는 맨 뒤.
+				.min(Comparator
+						.comparingInt((FieldError error) -> {
+							int index = FIELD_ORDER.indexOf(error.getField());
+							return index < 0 ? Integer.MAX_VALUE : index;
+						})
+						.thenComparing(FieldError::getCode, Comparator.nullsLast(Comparator.naturalOrder())))
 				.map(error -> error.getDefaultMessage())
 				.orElse("요청 형식이 올바르지 않아요.");
 		return message(HttpStatus.BAD_REQUEST, text);

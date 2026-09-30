@@ -9,6 +9,7 @@ import com.ssen.voca.user.AppUser;
 import com.ssen.voca.user.AppUserRepository;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Pattern;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,10 @@ public class AuthService {
 	// ponytail: dummy BCrypt hash so a name with no accounts still pays the encoder cost,
 	// keeping login timing constant regardless of account existence.
 	private static final String DUMMY_PIN_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
+	// 폭 없는 문자는 눈에 보이지 않으므로 이름 정규화에서 제거한다.
+	private static final Pattern INVISIBLE = Pattern.compile("[\\u200B\\u200C\\u200D\\u2060\\uFEFF]");
+	private static final int MAX_NAME_LENGTH = 50;
 
 	private final AppUserRepository appUserRepository;
 	private final PasswordEncoder passwordEncoder;
@@ -40,8 +45,7 @@ public class AuthService {
 	public TokenResponse signup(SignupRequest request) {
 		String nameKey = nameKey(request.name());
 		// 가입 호출은 성공 여부와 무관하게 시도 1회로 센다 (PIN 탐색용으로 쓰일 수 있으므로).
-		attemptLimiter.checkAllowed(nameKey);
-		attemptLimiter.recordAttempt(nameKey);
+		attemptLimiter.tryAcquire(nameKey);
 
 		// DB 유니크 제약은 해시된 PIN에 걸 수 없어서 같은 이름의 계정을 모두 BCrypt 비교한다.
 		// ponytail: 동시에 같은 (이름, PIN)으로 가입하면 중복이 생길 수 있는 경합은 허용 — 필요하면 name_key advisory lock.
@@ -49,7 +53,7 @@ public class AuthService {
 			throw new StudentAlreadyExistsException();
 		}
 
-		AppUser user = new AppUser(request.name().strip(), nameKey, passwordEncoder.encode(request.phoneLast4()));
+		AppUser user = new AppUser(displayName(request.name()), nameKey, passwordEncoder.encode(request.phoneLast4()));
 		appUserRepository.save(user);
 
 		return issueTokens(user);
@@ -57,7 +61,8 @@ public class AuthService {
 
 	public TokenResponse login(LoginRequest request) {
 		String nameKey = nameKey(request.name());
-		attemptLimiter.checkAllowed(nameKey);
+		// 선차감: 병렬 요청도 창당 한도를 넘지 못한다. 실패한 로그인은 차감을 그대로 두고, 성공하면 1회만 돌려준다.
+		attemptLimiter.tryAcquire(nameKey);
 
 		List<AppUser> candidates = appUserRepository.findAllByNameKey(nameKey);
 		if (candidates.isEmpty()) {
@@ -66,11 +71,10 @@ public class AuthService {
 
 		AppUser user = findMatch(candidates, request.phoneLast4());
 		if (user == null) {
-			attemptLimiter.recordAttempt(nameKey);
 			throw new InvalidCredentialsException();
 		}
 
-		attemptLimiter.clear(nameKey);
+		attemptLimiter.release(nameKey);
 		return issueTokens(user);
 	}
 
@@ -91,8 +95,20 @@ public class AuthService {
 		return null;
 	}
 
+	private static String displayName(String name) {
+		return INVISIBLE.matcher(name).replaceAll("").strip();
+	}
+
+	/** 정규화한 이름 키. 비었거나 50자를 넘으면(소문자화로 길어질 수 있다) 제한 카운터·DB에 닿기 전에 거절한다. */
 	private static String nameKey(String name) {
-		return name.strip().replaceAll("(?U)\\s+", " ").toLowerCase(Locale.ROOT);
+		String key = displayName(name).replaceAll("(?U)\\s+", " ").toLowerCase(Locale.ROOT);
+		if (key.isBlank()) {
+			throw new InvalidNameException(InvalidNameException.BLANK);
+		}
+		if (key.length() > MAX_NAME_LENGTH) {
+			throw new InvalidNameException(InvalidNameException.TOO_LONG);
+		}
+		return key;
 	}
 
 	private TokenResponse issueTokens(AppUser user) {
