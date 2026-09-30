@@ -86,4 +86,54 @@ class UserControllerTest {
 		mockMvc.perform(get("/api/users/me").header("Authorization", "Bearer " + accessToken))
 				.andExpect(jsonPath("$.classCode").value("WINTER-2026-A"));
 	}
+
+	private org.springframework.test.web.servlet.ResultActions patchClassCode(String accessToken, String classCode)
+			throws Exception {
+		return mockMvc.perform(patch("/api/users/me/class-code")
+				.header("Authorization", "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				// 요청 DTO는 생성 시 trim 하므로 클라이언트 쪽 공백 제거를 피하려고 원문 JSON으로 보낸다.
+				.content(objectMapper.writeValueAsString(java.util.Map.of("classCode", classCode))));
+	}
+
+	@Test
+	void classCodeOverFiftyCharsReturns400WithMessage() throws Exception {
+		String accessToken = signupAndGetAccessToken("유저코드길이");
+
+		patchClassCode(accessToken, "A".repeat(51))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("참여 코드는 50자 이하로 입력해 주세요"));
+	}
+
+	@Test
+	void classCodeOfExactlyFiftyCharsIsAccepted() throws Exception {
+		String accessToken = signupAndGetAccessToken("유저코드오십");
+
+		patchClassCode(accessToken, "A".repeat(50))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.classCode").value("A".repeat(50)));
+	}
+
+	@Test
+	void whitespaceOnlyClassCodeReturns400() throws Exception {
+		String accessToken = signupAndGetAccessToken("유저코드공백");
+
+		// 기본 @NotBlank 메시지(로케일에 따라 달라지므로 값은 비교하지 않는다)가 {"message"}로 내려온다.
+		patchClassCode(accessToken, "   ")
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").isNotEmpty())
+				.andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.not("참여 코드는 50자 이하로 입력해 주세요")));
+	}
+
+	@Test
+	void classCodeIsStoredTrimmedAndLengthIsCheckedOnTrimmedValue() throws Exception {
+		String accessToken = signupAndGetAccessToken("유저코드트림");
+
+		patchClassCode(accessToken, "  " + "B".repeat(50) + "  ")
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.classCode").value("B".repeat(50)));
+
+		mockMvc.perform(get("/api/users/me").header("Authorization", "Bearer " + accessToken))
+				.andExpect(jsonPath("$.classCode").value("B".repeat(50)));
+	}
 }
