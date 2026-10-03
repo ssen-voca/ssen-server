@@ -86,11 +86,12 @@ public class TeacherAuthService {
 		if (email.length() > MAX_EMAIL_LENGTH) {
 			throw new InvalidCredentialsException(BAD_CREDENTIALS);
 		}
-		String key = "teacher:" + email;
-		attemptLimiter.tryAcquire(key);
+		// 가입에서 거절되는 길이라 어떤 계정과도 일치할 수 없다. 제한 맵에 키를 만들지 않도록 선차감 전에 거절한다.
 		if (tooLong(request.password())) {
 			throw new InvalidCredentialsException(BAD_CREDENTIALS);
 		}
+		String key = "teacher:" + email;
+		attemptLimiter.tryAcquire(key);
 		AppUser teacher = appUserRepository.findByEmail(email)
 				.filter(user -> AppUser.TEACHER.equals(user.getRole()))
 				.orElse(null);

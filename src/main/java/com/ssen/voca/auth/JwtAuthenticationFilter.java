@@ -1,6 +1,7 @@
 package com.ssen.voca.auth;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -37,7 +38,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				SecurityContextHolder.getContext().setAuthentication(
 						new UsernamePasswordAuthenticationToken(
 								claims.getSubject(), null, List.of(new SimpleGrantedAuthority("ROLE_" + role))));
-			} catch (InvalidTokenException ignored) {
+			} catch (InvalidTokenException | JwtException ignored) {
 				SecurityContextHolder.clearContext();
 			}
 		}

@@ -112,18 +112,18 @@ class TeacherThrottleTest {
 	}
 
 	@Test
-	void overlongPasswordLoginStillChargesTheBudget() {
+	void overlongPasswordLoginDoesNotConsumeTheBudget() {
 		signupWithCode("throttle-long@example.com", inviteCode);
-		String tooLong = "가".repeat(25); // 75바이트
+		String tooLong = "가".repeat(25); // 75바이트: 어떤 계정과도 일치할 수 없으므로 제한 맵에 키를 만들지 않는다.
 		for (int i = 0; i < 5; i++) {
 			assertThatThrownBy(() -> teacherAuthService.login(
 					new TeacherLoginRequest("throttle-long@example.com", tooLong)))
 					.isInstanceOf(InvalidCredentialsException.class);
 		}
 
-		assertThatThrownBy(() -> teacherAuthService.login(
+		assertThatCode(() -> teacherAuthService.login(
 				new TeacherLoginRequest("throttle-long@example.com", "password1")))
-				.isInstanceOf(TooManyAttemptsException.class);
+				.doesNotThrowAnyException();
 	}
 
 	@Test

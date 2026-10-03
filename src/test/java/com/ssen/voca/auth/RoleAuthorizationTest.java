@@ -67,6 +67,21 @@ class RoleAuthorizationTest {
 	}
 
 	@Test
+	void tokenWithNonStringRoleClaimIsUnauthorizedNotServerError() throws Exception {
+		Date now = new Date();
+		String token = Jwts.builder()
+				.subject("1")
+				.claim("name", "숫자역할")
+				.claim("role", 42)
+				.issuedAt(now)
+				.expiration(new Date(now.getTime() + 60_000))
+				.signWith(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)))
+				.compact();
+
+		getTeacherPath(token).andExpect(status().isUnauthorized());
+	}
+
+	@Test
 	void noTokenIsUnauthorized() throws Exception {
 		getTeacherPath(null).andExpect(status().isUnauthorized());
 	}
