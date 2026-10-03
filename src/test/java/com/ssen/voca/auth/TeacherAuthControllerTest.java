@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssen.voca.support.ClassroomFixture;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,9 @@ class TeacherAuthControllerTest {
 
 	@Autowired
 	private JwtService jwtService;
+
+	@Autowired
+	private ClassroomFixture fixture;
 
 	@Value("${app.teacher.invite-code}")
 	private String inviteCode;
@@ -139,11 +143,12 @@ class TeacherAuthControllerTest {
 		signup("동명교사", "same-name-teacher@example.com", "password1", inviteCode).andExpect(status().isCreated());
 
 		// 같은 이름의 학생이 같은 이름 키로 가입·로그인해도 교사 행과 섞이지 않는다.
-		postJson("/api/auth/signup", Map.of("name", "동명교사", "phoneLast4", "1234"))
+		String classCode = fixture.newClassroom().getCode();
+		postJson("/api/auth/signup", Map.of("classCode", classCode, "name", "동명교사", "phoneLast4", "1234"))
 				.andExpect(status().isCreated());
-		postJson("/api/auth/login", Map.of("name", "동명교사", "phoneLast4", "1234"))
+		postJson("/api/auth/login", Map.of("classCode", classCode, "name", "동명교사", "phoneLast4", "1234"))
 				.andExpect(status().isOk());
-		postJson("/api/auth/login", Map.of("name", "동명교사", "phoneLast4", "9999"))
+		postJson("/api/auth/login", Map.of("classCode", classCode, "name", "동명교사", "phoneLast4", "9999"))
 				.andExpect(status().isUnauthorized());
 	}
 

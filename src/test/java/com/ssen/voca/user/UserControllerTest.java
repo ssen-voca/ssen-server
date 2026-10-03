@@ -10,8 +10,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssen.voca.auth.dto.SignupRequest;
+import com.ssen.voca.support.ClassroomFixture;
 import com.ssen.voca.user.dto.ClassCodeRequest;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +31,16 @@ import org.springframework.transaction.annotation.Transactional;
 class UserControllerTest {
 
 	@Autowired
+	private ClassroomFixture fixture;
+
+	private String code;
+
+	@BeforeEach
+	void newClassroom() {
+		code = fixture.newClassroom().getCode();
+	}
+
+	@Autowired
 	private MockMvc mockMvc;
 
 	@Autowired
@@ -37,7 +49,7 @@ class UserControllerTest {
 	private JsonNode signup(String name) throws Exception {
 		MvcResult result = mockMvc.perform(post("/api/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(objectMapper.writeValueAsString(new SignupRequest(name, "1234"))))
+						.content(objectMapper.writeValueAsString(new SignupRequest(code, name, "1234"))))
 				.andReturn();
 		return objectMapper.readTree(result.getResponse().getContentAsString());
 	}
