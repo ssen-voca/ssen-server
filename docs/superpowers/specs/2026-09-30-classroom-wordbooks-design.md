@@ -100,8 +100,8 @@ CREATE TABLE classroom_word (
 |---|---|---|---|
 | `POST /api/teacher/signup` `{name, email, password, inviteCode}` | 교사 가입 | 토큰 | 400 검증, 403 가입 코드 불일치, 409 이메일 중복, 429 |
 | `POST /api/teacher/login` `{email, password}` | 교사 로그인 | 토큰 | 401, 429 |
-| `POST /api/teacher/classrooms` `{name}` | 수업 생성, 참여코드 발급 | 201 `{id, name, code, wordCount, createdAt}` | 400 |
-| `GET /api/teacher/classrooms` | 내 수업 목록(wordCount 포함) | 200 | |
+| `POST /api/teacher/classrooms` `{name}` | 수업 생성, 참여코드 발급 | 201 `{id, name, code, createdAt}` | 400 |
+| `GET /api/teacher/classrooms` | 내 수업 목록(최신순, wordCount는 1b에서 추가) | 200 | |
 | (1b, 잠정) `PUT /api/teacher/classrooms/{id}/words` multipart `file` | CSV로 단어장 교체 | 200 `{added, updated, removed, total}` | 400 + `errors`, 404, 413 |
 | (1b) `GET /api/teacher/classrooms/{id}/words` | 수업 단어 목록(`position` 순) | 200 | 404 |
 
