@@ -83,7 +83,7 @@ public class AuthService {
 		AppUser user = appUserRepository.findById(userId)
 				.orElseThrow(() -> new InvalidTokenException("존재하지 않는 사용자입니다."));
 
-		return new AccessTokenResponse(jwtService.generateAccessToken(user.getId(), user.getName()));
+		return new AccessTokenResponse(jwtService.generateAccessToken(user.getId(), user.getName(), user.getRole()));
 	}
 
 	private AppUser findMatch(List<AppUser> candidates, String pin) {
@@ -113,7 +113,7 @@ public class AuthService {
 
 	private TokenResponse issueTokens(AppUser user) {
 		return new TokenResponse(
-				jwtService.generateAccessToken(user.getId(), user.getName()),
+				jwtService.generateAccessToken(user.getId(), user.getName(), user.getRole()),
 				jwtService.generateRefreshToken(user.getId()));
 	}
 }
