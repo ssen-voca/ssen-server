@@ -3,6 +3,7 @@ package com.ssen.voca.auth;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.ssen.voca.auth.dto.LoginRequest;
 import com.ssen.voca.auth.dto.TeacherLoginRequest;
 import com.ssen.voca.auth.dto.TeacherSignupRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,6 +34,9 @@ class TeacherThrottleTest {
 
 	@Autowired
 	private TeacherAuthService teacherAuthService;
+
+	@Autowired
+	private AuthService authService;
 
 	@Autowired
 	private MutableClock clock;
@@ -104,6 +108,43 @@ class TeacherThrottleTest {
 		}
 
 		assertThatCode(() -> teacherAuthService.login(new TeacherLoginRequest("throttle-c@example.com", "password1")))
+				.doesNotThrowAnyException();
+	}
+
+	@Test
+	void overlongPasswordLoginStillChargesTheBudget() {
+		signupWithCode("throttle-long@example.com", inviteCode);
+		String tooLong = "가".repeat(25); // 75바이트
+		for (int i = 0; i < 5; i++) {
+			assertThatThrownBy(() -> teacherAuthService.login(
+					new TeacherLoginRequest("throttle-long@example.com", tooLong)))
+					.isInstanceOf(InvalidCredentialsException.class);
+		}
+
+		assertThatThrownBy(() -> teacherAuthService.login(
+				new TeacherLoginRequest("throttle-long@example.com", "password1")))
+				.isInstanceOf(TooManyAttemptsException.class);
+	}
+
+	@Test
+	void studentNamedLikeTheSignupKeyDoesNotLockTeacherSignup() {
+		for (int i = 0; i < 5; i++) {
+			assertThatThrownBy(() -> authService.login(new LoginRequest("teacher-signup", "0000")))
+					.isInstanceOf(InvalidCredentialsException.class);
+		}
+
+		assertThatCode(() -> signupWithCode("throttle-ns@example.com", inviteCode)).doesNotThrowAnyException();
+	}
+
+	@Test
+	void studentNamedLikeATeacherKeyDoesNotLockThatTeachersLogin() {
+		signupWithCode("victim@example.com", inviteCode);
+		for (int i = 0; i < 5; i++) {
+			assertThatThrownBy(() -> authService.login(new LoginRequest("teacher:victim@example.com", "0000")))
+					.isInstanceOf(InvalidCredentialsException.class);
+		}
+
+		assertThatCode(() -> teacherAuthService.login(new TeacherLoginRequest("victim@example.com", "password1")))
 				.doesNotThrowAnyException();
 	}
 }

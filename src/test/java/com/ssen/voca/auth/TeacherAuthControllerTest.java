@@ -146,4 +146,35 @@ class TeacherAuthControllerTest {
 		postJson("/api/auth/login", Map.of("name", "동명교사", "phoneLast4", "9999"))
 				.andExpect(status().isUnauthorized());
 	}
+
+	@Test
+	void passwordOfExactly72BytesIsAccepted() throws Exception {
+		signup("경계교사", "boundary-pw@example.com", "가".repeat(24), inviteCode) // 72바이트
+				.andExpect(status().isCreated());
+	}
+
+	@Test
+	void loginEmailOver255CharsReturns400() throws Exception {
+		login("a".repeat(256), "password1")
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("이메일은 255자 이하로 입력해 주세요"));
+	}
+
+	@Test
+	void signupEmailThatGrowsPast255WhenLowerCasedReturns400() throws Exception {
+		// 원문은 255자이지만 'İ'가 소문자화되면 2글자가 되어 256자가 된다.
+		String email = "İ" + "a".repeat(63) + "@" + "a".repeat(60) + "." + "a".repeat(60) + "." + "a".repeat(60) + "." + "a".repeat(7);
+		assertThat(email).hasSize(255);
+
+		signup("긴이메일교사", email, "password1", inviteCode)
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("이메일은 255자 이하로 입력해 주세요"));
+	}
+
+	@Test
+	void nameMessageWinsWhenSeveralFieldsAreInvalid() throws Exception {
+		signup("", "not-an-email", "password1", inviteCode)
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.message").value("이름을 입력해 주세요"));
+	}
 }

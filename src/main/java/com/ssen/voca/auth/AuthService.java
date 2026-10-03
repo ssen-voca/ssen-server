@@ -19,6 +19,9 @@ public class AuthService {
 	// keeping login timing constant regardless of account existence.
 	private static final String DUMMY_PIN_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
 
+	// 교사 제한 키("teacher-signup", "teacher:<email>")와 섞이지 않도록 학생 키에는 접두사를 붙인다.
+	private static final String THROTTLE_PREFIX = "student:";
+
 	private final AppUserRepository appUserRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtService jwtService;
@@ -39,7 +42,7 @@ public class AuthService {
 	public TokenResponse signup(SignupRequest request) {
 		String nameKey = Names.key(request.name());
 		// 가입 호출은 성공 여부와 무관하게 시도 1회로 센다 (PIN 탐색용으로 쓰일 수 있으므로).
-		attemptLimiter.tryAcquire(nameKey);
+		attemptLimiter.tryAcquire(THROTTLE_PREFIX + nameKey);
 
 		// DB 유니크 제약은 해시된 PIN에 걸 수 없어서 같은 이름의 계정을 모두 BCrypt 비교한다.
 		// ponytail: 동시에 같은 (이름, PIN)으로 가입하면 중복이 생길 수 있는 경합은 허용 — 필요하면 name_key advisory lock.
@@ -56,7 +59,7 @@ public class AuthService {
 	public TokenResponse login(LoginRequest request) {
 		String nameKey = Names.key(request.name());
 		// 선차감: 병렬 요청도 창당 한도를 넘지 못한다. 실패한 로그인은 차감을 그대로 두고, 성공하면 1회만 돌려준다.
-		attemptLimiter.tryAcquire(nameKey);
+		attemptLimiter.tryAcquire(THROTTLE_PREFIX + nameKey);
 
 		List<AppUser> candidates = appUserRepository.findAllByNameKeyAndRole(nameKey, AppUser.STUDENT);
 		if (candidates.isEmpty()) {
@@ -68,7 +71,7 @@ public class AuthService {
 			throw new InvalidCredentialsException();
 		}
 
-		attemptLimiter.release(nameKey);
+		attemptLimiter.release(THROTTLE_PREFIX + nameKey);
 		return issueTokens(user);
 	}
 

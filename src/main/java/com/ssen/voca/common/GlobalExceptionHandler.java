@@ -1,6 +1,7 @@
 package com.ssen.voca.common;
 
 import com.ssen.voca.auth.InvalidCredentialsException;
+import com.ssen.voca.auth.InvalidEmailException;
 import com.ssen.voca.auth.InvalidInviteCodeException;
 import com.ssen.voca.auth.InvalidNameException;
 import com.ssen.voca.auth.InvalidPasswordException;
@@ -50,8 +51,8 @@ public class GlobalExceptionHandler {
 		return message(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
 	}
 
-	@ExceptionHandler(InvalidNameException.class)
-	public ResponseEntity<Map<String, String>> handleInvalidName(InvalidNameException e) {
+	@ExceptionHandler({InvalidNameException.class, InvalidEmailException.class})
+	public ResponseEntity<Map<String, String>> handleInvalidName(RuntimeException e) {
 		return message(HttpStatus.BAD_REQUEST, e.getMessage());
 	}
 
