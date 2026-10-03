@@ -40,7 +40,9 @@ class AuthConcurrencyTest {
 
 	@AfterEach
 	void cleanUp() {
-		fixture.deleteClassroomAndTeacher(classroom);
+		if (classroom != null) {
+			fixture.deleteClassroomAndTeacher(classroom);
+		}
 	}
 
 	@Test
