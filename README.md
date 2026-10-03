@@ -46,7 +46,7 @@
 | POST | `/api/auth/signup` | 가입 `{name, phoneLast4}` → 201 `{accessToken, refreshToken}`. 같은 이름 + 같은 번호는 409 |
 | POST | `/api/auth/login` | 로그인 `{name, phoneLast4}` → 200 `{accessToken, refreshToken}`. 불일치는 401 |
 | POST | `/api/auth/refresh` | `{refreshToken}` → `{accessToken}` |
-| GET | `/api/users/me` | 내 정보 `{id, name, classCode, role}` (액세스 토큰 필요) |
+| GET | `/api/users/me` | 내 정보 `{id, name, classCode, role, email}` (액세스 토큰 필요) |
 | PATCH | `/api/users/me/class-code` | 참여 코드 등록 `{classCode}` (액세스 토큰 필요) |
 
 - 이름은 앞뒤 공백 제거 · 연속 공백 1칸 · 소문자로 정규화해 같은 학생인지 판단합니다. 같은 이름의 다른 학생은 번호로 구분합니다.
@@ -55,6 +55,22 @@
 - 앱이 직접 내는 오류(가입 중복 409, 로그인 실패 401, 시도 초과 429, 검증 실패·본문 형식 오류 400)는 `{"message": "..."}` 형태이고, 검증 실패는 첫 번째 오류 메시지를 담습니다. 프레임워크가 내는 오류(CORS 거절 403 "Invalid CORS request", 토큰 없는 요청의 401, 405·415 등)는 Spring 기본 응답 본문을 씁니다.
 - 이름은 눈에 보이지 않는 문자(폭 없는 공백 등)를 제거한 뒤 비어 있으면 400입니다.
 - 액세스 토큰 30분 · 리프레시 토큰 14일 (JWT, 무상태).
+
+### 교사 API
+
+교사는 **이메일 + 비밀번호**로 로그인하고, 가입할 때 **교사 가입 코드**(`TEACHER_INVITE_CODE`)가 필요합니다. 교사 API는 액세스 토큰의 role이 `TEACHER`일 때만 쓸 수 있습니다(학생 토큰은 403).
+
+| 메서드 | 경로 | 설명 |
+| --- | --- | --- |
+| POST | `/api/teacher/signup` | 교사 가입 `{name, email, password, inviteCode}` → 201 `{accessToken, refreshToken}`. 코드 불일치 403, 이메일 중복 409 |
+| POST | `/api/teacher/login` | 로그인 `{email, password}` → 200 `{accessToken, refreshToken}`. 불일치 401 |
+| POST | `/api/teacher/classrooms` | 수업 생성 `{name}` → 201 `{id, name, code, createdAt}`. `code`는 6자리 참여코드 |
+| GET | `/api/teacher/classrooms` | 내 수업 목록(최신순) |
+
+- 이메일은 앞뒤 공백 제거 · 소문자로 저장·비교합니다. 비밀번호는 8자 이상, UTF-8 72바이트 이하(BCrypt 한도)이며 BCrypt 해시로만 저장합니다.
+- 가입 코드 입력은 `teacher-signup` 키 하나로 5분에 5회까지만 틀릴 수 있고(맞게 입력하면 그 1회는 돌려줍니다), 교사 로그인은 이메일 기준으로 같은 규칙입니다. 넘으면 429입니다.
+- 참여코드는 0/O, 1/I/L을 뺀 31자로 만든 6자리입니다. 교사는 자기 수업만 볼 수 있습니다.
+- 리프레시(`/api/auth/refresh`)는 교사·학생 공통이고, 새 액세스 토큰에는 DB의 최신 role이 담깁니다.
 
 ### CORS
 

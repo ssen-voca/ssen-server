@@ -16,6 +16,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class AppUser {
 
+	public static final String STUDENT = "STUDENT";
+	public static final String TEACHER = "TEACHER";
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
@@ -26,8 +29,12 @@ public class AppUser {
 	@Column(name = "name_key", nullable = false, length = 50)
 	private String nameKey;
 
-	@Column(name = "pin_hash", nullable = false)
-	private String pinHash;
+	// 학생은 휴대폰 뒤 4자리, 교사는 비밀번호의 BCrypt 해시.
+	@Column(name = "secret_hash", nullable = false)
+	private String secretHash;
+
+	@Column(length = 255)
+	private String email;
 
 	@Column(name = "class_code", length = 50)
 	private String classCode;
@@ -38,12 +45,19 @@ public class AppUser {
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private LocalDateTime createdAt;
 
-	public AppUser(String name, String nameKey, String pinHash) {
+	public AppUser(String name, String nameKey, String secretHash) {
 		this.name = name;
 		this.nameKey = nameKey;
-		this.pinHash = pinHash;
-		this.role = "STUDENT";
+		this.secretHash = secretHash;
+		this.role = STUDENT;
 		this.createdAt = LocalDateTime.now();
+	}
+
+	public static AppUser teacher(String name, String nameKey, String email, String secretHash) {
+		AppUser user = new AppUser(name, nameKey, secretHash);
+		user.email = email;
+		user.role = TEACHER;
+		return user;
 	}
 
 	public void updateClassCode(String classCode) {

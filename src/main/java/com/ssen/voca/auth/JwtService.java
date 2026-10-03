@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtService {
 
+	public static final String ROLE_CLAIM = "role";
 	private static final String TYPE_CLAIM = "type";
 	private static final String REFRESH_TYPE = "refresh";
 
@@ -29,11 +30,12 @@ public class JwtService {
 		this.refreshTokenTtlMillis = refreshTokenTtlMillis;
 	}
 
-	public String generateAccessToken(Long userId, String name) {
+	public String generateAccessToken(Long userId, String name, String role) {
 		Date now = new Date();
 		return Jwts.builder()
 				.subject(String.valueOf(userId))
 				.claim("name", name)
+				.claim(ROLE_CLAIM, role)
 				.issuedAt(now)
 				.expiration(new Date(now.getTime() + accessTokenTtlMillis))
 				.signWith(key)

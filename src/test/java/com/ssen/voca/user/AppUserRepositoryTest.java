@@ -20,8 +20,8 @@ class AppUserRepositoryTest {
 		appUserRepository.save(new AppUser("김학생", "repo-김학생", "hash-1"));
 		appUserRepository.save(new AppUser("김학생", "repo-김학생", "hash-2"));
 
-		assertThat(appUserRepository.findAllByNameKey("repo-김학생"))
-				.extracting(AppUser::getPinHash, AppUser::getRole)
+		assertThat(appUserRepository.findAllByNameKeyAndRole("repo-김학생", AppUser.STUDENT))
+				.extracting(AppUser::getSecretHash, AppUser::getRole)
 				.containsExactlyInAnyOrder(
 						tuple("hash-1", "STUDENT"),
 						tuple("hash-2", "STUDENT"));
@@ -29,6 +29,6 @@ class AppUserRepositoryTest {
 
 	@Test
 	void findAllByNameKeyReturnsEmptyForUnknownName() {
-		assertThat(appUserRepository.findAllByNameKey("repo-nobody")).isEmpty();
+		assertThat(appUserRepository.findAllByNameKeyAndRole("repo-nobody", AppUser.STUDENT)).isEmpty();
 	}
 }

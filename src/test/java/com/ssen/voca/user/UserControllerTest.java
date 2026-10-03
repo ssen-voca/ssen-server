@@ -1,5 +1,6 @@
 package com.ssen.voca.user;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -10,10 +11,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssen.voca.auth.dto.SignupRequest;
 import com.ssen.voca.user.dto.ClassCodeRequest;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -133,5 +137,34 @@ class UserControllerTest {
 
 		mockMvc.perform(get("/api/users/me").header("Authorization", "Bearer " + accessToken))
 				.andExpect(jsonPath("$.classCode").value("B".repeat(50)));
+	}
+
+	@Value("${app.teacher.invite-code}")
+	private String inviteCode;
+
+	@Test
+	void teacherMeIncludesEmailAndRole() throws Exception {
+		String response = mockMvc.perform(post("/api/teacher/signup")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(Map.of(
+								"name", "내정보교사", "email", "me-teacher@example.com",
+								"password", "password1", "inviteCode", inviteCode))))
+				.andReturn().getResponse().getContentAsString();
+		String token = objectMapper.readTree(response).get("accessToken").asText();
+
+		mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.role").value("TEACHER"))
+				.andExpect(jsonPath("$.email").value("me-teacher@example.com"));
+	}
+
+	@Test
+	void studentMeHasNullEmail() throws Exception {
+		String token = signupAndGetAccessToken("내정보학생이메일");
+
+		mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.role").value("STUDENT"))
+				.andExpect(jsonPath("$.email").value(nullValue()));
 	}
 }
