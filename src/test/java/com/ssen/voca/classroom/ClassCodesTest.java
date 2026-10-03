@@ -19,4 +19,9 @@ class ClassCodesTest {
 	void normalizeReturnsNullForInvalidFormats(String raw) {
 		assertThat(ClassCodes.normalize(raw)).isNull();
 	}
+
+	@Test
+	void normalizeReturnsNullForNull() {
+		assertThat(ClassCodes.normalize(null)).isNull();
+	}
 }

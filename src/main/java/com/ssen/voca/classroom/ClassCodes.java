@@ -14,8 +14,11 @@ public final class ClassCodes {
 	private ClassCodes() {
 	}
 
-	/** 앞뒤 공백을 제거하고 대문자로 바꾼다. 코드 형식이 아니면 null (DB를 조회할 필요가 없는 입력). */
+	/** 앞뒤 공백을 제거하고 대문자로 바꾼다. 코드 형식이 아니거나 null이면 null (DB를 조회할 필요가 없는 입력). */
 	public static String normalize(String raw) {
+		if (raw == null) {
+			return null;
+		}
 		String code = raw.strip().toUpperCase(Locale.ROOT);
 		return FORMAT.matcher(code).matches() ? code : null;
 	}
