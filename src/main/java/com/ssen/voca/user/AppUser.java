@@ -39,6 +39,9 @@ public class AppUser {
 	@Column(name = "class_code", length = 50)
 	private String classCode;
 
+	@Column(name = "classroom_id")
+	private Long classroomId;
+
 	@Column(nullable = false, length = 20)
 	private String role;
 
@@ -51,6 +54,11 @@ public class AppUser {
 		this.secretHash = secretHash;
 		this.role = STUDENT;
 		this.createdAt = LocalDateTime.now();
+	}
+
+	public AppUser(String name, String nameKey, String secretHash, Long classroomId) {
+		this(name, nameKey, secretHash);
+		this.classroomId = classroomId;
 	}
 
 	public static AppUser teacher(String name, String nameKey, String email, String secretHash) {
