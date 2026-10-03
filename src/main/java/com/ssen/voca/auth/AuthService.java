@@ -49,7 +49,7 @@ public class AuthService {
 
 		// DB 유니크 제약은 해시된 PIN에 걸 수 없어서 같은 이름의 계정을 모두 BCrypt 비교한다.
 		// ponytail: 동시에 같은 (이름, PIN)으로 가입하면 중복이 생길 수 있는 경합은 허용 — 필요하면 name_key advisory lock.
-		if (findMatch(appUserRepository.findAllByNameKey(nameKey), request.phoneLast4()) != null) {
+		if (findMatch(appUserRepository.findAllByNameKeyAndRole(nameKey, AppUser.STUDENT), request.phoneLast4()) != null) {
 			throw new StudentAlreadyExistsException();
 		}
 
@@ -64,7 +64,7 @@ public class AuthService {
 		// 선차감: 병렬 요청도 창당 한도를 넘지 못한다. 실패한 로그인은 차감을 그대로 두고, 성공하면 1회만 돌려준다.
 		attemptLimiter.tryAcquire(nameKey);
 
-		List<AppUser> candidates = appUserRepository.findAllByNameKey(nameKey);
+		List<AppUser> candidates = appUserRepository.findAllByNameKeyAndRole(nameKey, AppUser.STUDENT);
 		if (candidates.isEmpty()) {
 			passwordEncoder.matches(request.phoneLast4(), DUMMY_PIN_HASH);
 		}
@@ -88,7 +88,7 @@ public class AuthService {
 
 	private AppUser findMatch(List<AppUser> candidates, String pin) {
 		for (AppUser candidate : candidates) {
-			if (passwordEncoder.matches(pin, candidate.getPinHash())) {
+			if (passwordEncoder.matches(pin, candidate.getSecretHash())) {
 				return candidate;
 			}
 		}
