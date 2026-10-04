@@ -10,8 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssen.voca.auth.dto.SignupRequest;
-import com.ssen.voca.user.dto.ClassCodeRequest;
+import com.ssen.voca.classroom.Classroom;
+import com.ssen.voca.support.ClassroomFixture;
+import com.ssen.voca.auth.JwtService;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +22,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,15 +33,31 @@ import org.springframework.transaction.annotation.Transactional;
 class UserControllerTest {
 
 	@Autowired
+	private ClassroomFixture fixture;
+
+	private Classroom classroom;
+
+	@BeforeEach
+	void newClassroom() {
+		classroom = fixture.newClassroom();
+	}
+
+	@Autowired
 	private MockMvc mockMvc;
 
 	@Autowired
 	private ObjectMapper objectMapper;
 
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
+
+	@Autowired
+	private JwtService jwtService;
+
 	private JsonNode signup(String name) throws Exception {
 		MvcResult result = mockMvc.perform(post("/api/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(objectMapper.writeValueAsString(new SignupRequest(name, "1234"))))
+						.content(objectMapper.writeValueAsString(new SignupRequest(classroom.getCode(), name, "1234"))))
 				.andReturn();
 		return objectMapper.readTree(result.getResponse().getContentAsString());
 	}
@@ -59,7 +79,7 @@ class UserControllerTest {
 		mockMvc.perform(get("/api/users/me").header("Authorization", "Bearer " + accessToken))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.name").value("유저조회"))
-				.andExpect(jsonPath("$.email").doesNotExist());
+				.andExpect(jsonPath("$.email").value(nullValue()));
 	}
 
 	@Test
@@ -74,69 +94,6 @@ class UserControllerTest {
 
 		mockMvc.perform(get("/api/users/me").header("Authorization", "Bearer " + refreshToken))
 				.andExpect(status().isUnauthorized());
-	}
-
-	@Test
-	void updateClassCodeThenMeReflectsIt() throws Exception {
-		String accessToken = signupAndGetAccessToken("유저참여코드");
-
-		mockMvc.perform(patch("/api/users/me/class-code")
-						.header("Authorization", "Bearer " + accessToken)
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(objectMapper.writeValueAsString(new ClassCodeRequest("WINTER-2026-A"))))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.classCode").value("WINTER-2026-A"));
-
-		mockMvc.perform(get("/api/users/me").header("Authorization", "Bearer " + accessToken))
-				.andExpect(jsonPath("$.classCode").value("WINTER-2026-A"));
-	}
-
-	private org.springframework.test.web.servlet.ResultActions patchClassCode(String accessToken, String classCode)
-			throws Exception {
-		return mockMvc.perform(patch("/api/users/me/class-code")
-				.header("Authorization", "Bearer " + accessToken)
-				.contentType(MediaType.APPLICATION_JSON)
-				// 요청 DTO는 생성 시 trim 하므로 클라이언트 쪽 공백 제거를 피하려고 원문 JSON으로 보낸다.
-				.content(objectMapper.writeValueAsString(java.util.Map.of("classCode", classCode))));
-	}
-
-	@Test
-	void classCodeOverFiftyCharsReturns400WithMessage() throws Exception {
-		String accessToken = signupAndGetAccessToken("유저코드길이");
-
-		patchClassCode(accessToken, "A".repeat(51))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.message").value("참여 코드는 50자 이하로 입력해 주세요"));
-	}
-
-	@Test
-	void classCodeOfExactlyFiftyCharsIsAccepted() throws Exception {
-		String accessToken = signupAndGetAccessToken("유저코드오십");
-
-		patchClassCode(accessToken, "A".repeat(50))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.classCode").value("A".repeat(50)));
-	}
-
-	@Test
-	void whitespaceOnlyClassCodeReturns400() throws Exception {
-		String accessToken = signupAndGetAccessToken("유저코드공백");
-
-		patchClassCode(accessToken, "   ")
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.message").value("참여 코드를 입력해 주세요"));
-	}
-
-	@Test
-	void classCodeIsStoredTrimmedAndLengthIsCheckedOnTrimmedValue() throws Exception {
-		String accessToken = signupAndGetAccessToken("유저코드트림");
-
-		patchClassCode(accessToken, "  " + "B".repeat(50) + "  ")
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.classCode").value("B".repeat(50)));
-
-		mockMvc.perform(get("/api/users/me").header("Authorization", "Bearer " + accessToken))
-				.andExpect(jsonPath("$.classCode").value("B".repeat(50)));
 	}
 
 	@Value("${app.teacher.invite-code}")
@@ -166,5 +123,57 @@ class UserControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.role").value("STUDENT"))
 				.andExpect(jsonPath("$.email").value(nullValue()));
+	}
+
+	@Test
+	void studentMeShowsTheClassroom() throws Exception {
+		String token = signupAndGetAccessToken("내정보수업");
+
+		mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.classroom.id").value(classroom.getId()))
+				.andExpect(jsonPath("$.classroom.name").value(classroom.getName()))
+				.andExpect(jsonPath("$.classroom.code").value(classroom.getCode()))
+				.andExpect(jsonPath("$.classCode").doesNotExist());
+	}
+
+	@Test
+	void teacherMeHasNullClassroom() throws Exception {
+		String response = mockMvc.perform(post("/api/teacher/signup")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(Map.of(
+								"name", "내정보교사수업", "email", "me-teacher-classroom@example.com",
+								"password", "password1", "inviteCode", inviteCode))))
+				.andReturn().getResponse().getContentAsString();
+		String token = objectMapper.readTree(response).get("accessToken").asText();
+
+		mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$.classroom").value(nullValue()));
+	}
+
+	@Test
+	void legacyStudentWithoutClassroomStillGetsMe() throws Exception {
+		// 수업이 없던 시절의 학생 행(V6 이전). CHECK 제약이 NOT VALID라 기존 행은 남을 수 있고, 새 토큰은 직접 만든다.
+		jdbcTemplate.execute("ALTER TABLE app_user DROP CONSTRAINT ck_app_user_student_classroom");
+		Long id = jdbcTemplate.queryForObject(
+				"INSERT INTO app_user (name, name_key, secret_hash, role) VALUES ('옛학생', '옛학생', 'h', 'STUDENT') RETURNING id",
+				Long.class);
+		String token = jwtService.generateAccessToken(id, "옛학생", "STUDENT");
+
+		mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.name").value("옛학생"))
+				.andExpect(jsonPath("$.classroom").value(nullValue()));
+	}
+
+	@Test
+	void patchingTheClassCodeIsGone() throws Exception {
+		String token = signupAndGetAccessToken("내정보코드삭제");
+
+		mockMvc.perform(patch("/api/users/me/class-code")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"classCode\":\"ABC234\"}"))
+				.andExpect(status().isNotFound());
 	}
 }
