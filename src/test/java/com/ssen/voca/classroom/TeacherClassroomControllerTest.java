@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssen.voca.support.ClassroomFixture;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,9 @@ class TeacherClassroomControllerTest {
 
 	@Autowired
 	private ObjectMapper objectMapper;
+
+	@Autowired
+	private ClassroomFixture fixture;
 
 	@Value("${app.teacher.invite-code}")
 	private String inviteCode;
@@ -116,7 +120,7 @@ class TeacherClassroomControllerTest {
 
 	@Test
 	void studentTokenIsForbiddenAndNoTokenIsUnauthorized() throws Exception {
-		String studentToken = postForJson("/api/auth/signup", Map.of("name", "수업학생", "phoneLast4", "1234"))
+		String studentToken = postForJson("/api/auth/signup", Map.of("classCode", fixture.newClassroom().getCode(), "name", "수업학생", "phoneLast4", "1234"))
 				.get("accessToken").asText();
 
 		listClassrooms(studentToken).andExpect(status().isForbidden());

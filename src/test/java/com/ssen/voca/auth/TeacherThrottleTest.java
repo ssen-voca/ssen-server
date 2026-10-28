@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.ssen.voca.auth.dto.LoginRequest;
 import com.ssen.voca.auth.dto.TeacherLoginRequest;
 import com.ssen.voca.auth.dto.TeacherSignupRequest;
+import com.ssen.voca.support.ClassroomFixture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,9 +45,15 @@ class TeacherThrottleTest {
 	@Value("${app.teacher.invite-code}")
 	private String inviteCode;
 
+	@Autowired
+	private ClassroomFixture fixture;
+
+	private String code;
+
 	@BeforeEach
 	void openFreshWindow() {
 		clock.advanceMillis(6 * 60 * 1000);
+		code = fixture.newClassroom().getCode();
 	}
 
 	private void signupWithCode(String email, String code) {
@@ -129,7 +136,7 @@ class TeacherThrottleTest {
 	@Test
 	void studentNamedLikeTheSignupKeyDoesNotLockTeacherSignup() {
 		for (int i = 0; i < 5; i++) {
-			assertThatThrownBy(() -> authService.login(new LoginRequest("teacher-signup", "0000")))
+			assertThatThrownBy(() -> authService.login(new LoginRequest(code, "teacher-signup", "0000")))
 					.isInstanceOf(InvalidCredentialsException.class);
 		}
 
@@ -140,7 +147,7 @@ class TeacherThrottleTest {
 	void studentNamedLikeATeacherKeyDoesNotLockThatTeachersLogin() {
 		signupWithCode("victim@example.com", inviteCode);
 		for (int i = 0; i < 5; i++) {
-			assertThatThrownBy(() -> authService.login(new LoginRequest("teacher:victim@example.com", "0000")))
+			assertThatThrownBy(() -> authService.login(new LoginRequest(code, "teacher:victim@example.com", "0000")))
 					.isInstanceOf(InvalidCredentialsException.class);
 		}
 

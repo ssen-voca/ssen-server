@@ -9,6 +9,7 @@ import com.ssen.voca.auth.InvalidTokenException;
 import com.ssen.voca.auth.StudentAlreadyExistsException;
 import com.ssen.voca.auth.TeacherEmailExistsException;
 import com.ssen.voca.auth.TooManyAttemptsException;
+import com.ssen.voca.classroom.ClassroomNotFoundException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -23,12 +24,17 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-	// 검증 오류를 필드 순서대로 안정적으로 내려주기 위한 순서 (name → email → password → inviteCode → phoneLast4).
-	private static final List<String> FIELD_ORDER = List.of("name", "email", "password", "inviteCode", "phoneLast4");
+	// 검증 오류를 필드 순서대로 안정적으로 내려주기 위한 순서 (classCode → name → email → password → inviteCode → phoneLast4).
+	private static final List<String> FIELD_ORDER = List.of("classCode", "name", "email", "password", "inviteCode", "phoneLast4");
 
 	@ExceptionHandler({StudentAlreadyExistsException.class, TeacherEmailExistsException.class})
 	public ResponseEntity<Map<String, String>> handleAlreadyExists(RuntimeException e) {
 		return message(HttpStatus.CONFLICT, e.getMessage());
+	}
+
+	@ExceptionHandler(ClassroomNotFoundException.class)
+	public ResponseEntity<Map<String, String>> handleClassroomNotFound(ClassroomNotFoundException e) {
+		return message(HttpStatus.BAD_REQUEST, e.getMessage());
 	}
 
 	@ExceptionHandler(InvalidInviteCodeException.class)

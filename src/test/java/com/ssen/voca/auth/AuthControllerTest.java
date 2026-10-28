@@ -8,8 +8,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssen.voca.auth.dto.RefreshRequest;
+import com.ssen.voca.support.ClassroomFixture;
 import java.util.Base64;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -25,8 +27,18 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class AuthControllerTest {
 
+	@Autowired
+	private ClassroomFixture fixture;
+
+	private String code;
+
+	@BeforeEach
+	void newClassroom() {
+		code = fixture.newClassroom().getCode();
+	}
+
 	private static final String ALREADY_EXISTS = "이미 가입된 학생이에요. 로그인해 주세요.";
-	private static final String BAD_CREDENTIALS = "이름 또는 휴대폰 번호가 올바르지 않아요.";
+	private static final String BAD_CREDENTIALS = "참여 코드, 이름 또는 휴대폰 번호가 올바르지 않아요.";
 	private static final String NAME_REQUIRED = "이름을 입력해 주세요";
 	private static final String NAME_TOO_LONG = "이름은 50자 이하로 입력해 주세요";
 	private static final String PIN_INVALID = "휴대폰 번호 뒤 4자리를 숫자로 입력해 주세요";
@@ -43,7 +55,7 @@ class AuthControllerTest {
 
 	private ResultActions auth(String path, String name, String phoneLast4) throws Exception {
 		return postJson(path, objectMapper.writeValueAsString(
-				Map.of("name", name, "phoneLast4", phoneLast4)));
+				Map.of("classCode", code, "name", name, "phoneLast4", phoneLast4)));
 	}
 
 	@Test
@@ -96,7 +108,7 @@ class AuthControllerTest {
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(PIN_INVALID));
 		auth("/api/auth/signup", "컨트롤러검증", "")
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(PIN_INVALID));
-		postJson("/api/auth/signup", "{\"name\":\"컨트롤러검증\"}")
+		postJson("/api/auth/signup", "{\"classCode\":\"" + code + "\",\"name\":\"컨트롤러검증\"}")
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(PIN_INVALID));
 	}
 
