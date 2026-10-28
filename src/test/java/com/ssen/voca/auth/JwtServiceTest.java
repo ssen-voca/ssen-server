@@ -13,7 +13,7 @@ class JwtServiceTest {
 
 	@Test
 	void generatesAndParsesAccessToken() {
-		String token = jwtService.generateAccessToken(1L, "김학생");
+		String token = jwtService.generateAccessToken(1L, "김학생", "STUDENT");
 
 		Claims claims = jwtService.parseAccessToken(token);
 
@@ -40,7 +40,7 @@ class JwtServiceTest {
 
 	@Test
 	void rejectsAccessTokenAsRefreshToken() {
-		String accessToken = jwtService.generateAccessToken(1L, "김학생");
+		String accessToken = jwtService.generateAccessToken(1L, "김학생", "STUDENT");
 
 		assertThatThrownBy(() -> jwtService.parseRefreshToken(accessToken))
 				.isInstanceOf(InvalidTokenException.class);
@@ -50,5 +50,12 @@ class JwtServiceTest {
 	void rejectsGarbageToken() {
 		assertThatThrownBy(() -> jwtService.parseAccessToken("not-a-jwt"))
 				.isInstanceOf(InvalidTokenException.class);
+	}
+
+	@Test
+	void accessTokenCarriesRoleClaim() {
+		String token = jwtService.generateAccessToken(1L, "김교사", "TEACHER");
+
+		assertThat(jwtService.parseAccessToken(token).get("role", String.class)).isEqualTo("TEACHER");
 	}
 }

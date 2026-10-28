@@ -1,10 +1,15 @@
 package com.ssen.voca.common;
 
 import com.ssen.voca.auth.InvalidCredentialsException;
+import com.ssen.voca.auth.InvalidEmailException;
+import com.ssen.voca.auth.InvalidInviteCodeException;
 import com.ssen.voca.auth.InvalidNameException;
+import com.ssen.voca.auth.InvalidPasswordException;
 import com.ssen.voca.auth.InvalidTokenException;
 import com.ssen.voca.auth.StudentAlreadyExistsException;
+import com.ssen.voca.auth.TeacherEmailExistsException;
 import com.ssen.voca.auth.TooManyAttemptsException;
+import com.ssen.voca.classroom.ClassroomNotFoundException;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -19,12 +24,27 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-	// 검증 오류를 필드 순서대로 안정적으로 내려주기 위한 순서 (name → phoneLast4).
-	private static final List<String> FIELD_ORDER = List.of("name", "phoneLast4");
+	// 검증 오류를 필드 순서대로 안정적으로 내려주기 위한 순서 (classCode → name → email → password → inviteCode → phoneLast4).
+	private static final List<String> FIELD_ORDER = List.of("classCode", "name", "email", "password", "inviteCode", "phoneLast4");
 
-	@ExceptionHandler(StudentAlreadyExistsException.class)
-	public ResponseEntity<Map<String, String>> handleAlreadyExists(StudentAlreadyExistsException e) {
+	@ExceptionHandler({StudentAlreadyExistsException.class, TeacherEmailExistsException.class})
+	public ResponseEntity<Map<String, String>> handleAlreadyExists(RuntimeException e) {
 		return message(HttpStatus.CONFLICT, e.getMessage());
+	}
+
+	@ExceptionHandler(ClassroomNotFoundException.class)
+	public ResponseEntity<Map<String, String>> handleClassroomNotFound(ClassroomNotFoundException e) {
+		return message(HttpStatus.BAD_REQUEST, e.getMessage());
+	}
+
+	@ExceptionHandler(InvalidInviteCodeException.class)
+	public ResponseEntity<Map<String, String>> handleInvalidInviteCode(InvalidInviteCodeException e) {
+		return message(HttpStatus.FORBIDDEN, e.getMessage());
+	}
+
+	@ExceptionHandler(InvalidPasswordException.class)
+	public ResponseEntity<Map<String, String>> handleInvalidPassword(InvalidPasswordException e) {
+		return message(HttpStatus.BAD_REQUEST, e.getMessage());
 	}
 
 	@ExceptionHandler({InvalidCredentialsException.class, InvalidTokenException.class})
@@ -37,8 +57,8 @@ public class GlobalExceptionHandler {
 		return message(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
 	}
 
-	@ExceptionHandler(InvalidNameException.class)
-	public ResponseEntity<Map<String, String>> handleInvalidName(InvalidNameException e) {
+	@ExceptionHandler({InvalidNameException.class, InvalidEmailException.class})
+	public ResponseEntity<Map<String, String>> handleInvalidName(RuntimeException e) {
 		return message(HttpStatus.BAD_REQUEST, e.getMessage());
 	}
 

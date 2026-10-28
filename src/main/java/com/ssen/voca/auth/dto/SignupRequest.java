@@ -6,6 +6,9 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record SignupRequest(
+		@NotBlank(message = "참여 코드를 입력해 주세요")
+		@Size(max = 20, message = "참여 코드를 확인해 주세요.")
+		String classCode,
 		@NotBlank(message = "이름을 입력해 주세요")
 		@Size(max = 50, message = "이름은 50자 이하로 입력해 주세요")
 		String name,
