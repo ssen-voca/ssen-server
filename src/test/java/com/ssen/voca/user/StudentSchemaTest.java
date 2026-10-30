@@ -3,8 +3,6 @@ package com.ssen.voca.user;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.ssen.voca.classroom.Classroom;
-import com.ssen.voca.support.ClassroomFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,33 +18,32 @@ class StudentSchemaTest {
 	private AppUserRepository appUserRepository;
 
 	@Autowired
-	private ClassroomFixture fixture;
-
-	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
 	@Test
-	void studentWithoutClassroomViolatesCheckConstraint() {
+	void studentWithoutSchoolViolatesCheckConstraint() {
 		assertThatThrownBy(() -> jdbcTemplate.update(
 				"INSERT INTO app_user (name, name_key, secret_hash, role) VALUES ('학생', '학생', 'h', 'STUDENT')"))
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	@Test
-	void studentWithClassroomIsSaved() {
-		Classroom classroom = fixture.newClassroom();
+	void studentWithSchoolAndNoClassroomIsSaved() {
+		AppUser saved = appUserRepository.saveAndFlush(new AppUser("학생", "스키마학생", "h", "스키마 학교", "스키마학교"));
 
-		AppUser saved = appUserRepository.saveAndFlush(new AppUser("학생", "스키마학생", "h", classroom.getId()));
-
-		assertThat(saved.getClassroomId()).isEqualTo(classroom.getId());
+		assertThat(saved.getSchool()).isEqualTo("스키마 학교");
+		assertThat(saved.getSchoolKey()).isEqualTo("스키마학교");
+		assertThat(saved.getClassroomId()).isNull();
 		assertThat(saved.getRole()).isEqualTo(AppUser.STUDENT);
 	}
 
 	@Test
-	void teacherDoesNotNeedAClassroom() {
+	void teacherDoesNotNeedASchoolOrClassroom() {
 		AppUser saved = appUserRepository.saveAndFlush(
 				AppUser.teacher("교사", "스키마교사학생", "schema-student-teacher@example.com", "h"));
 
+		assertThat(saved.getSchool()).isNull();
+		assertThat(saved.getSchoolKey()).isNull();
 		assertThat(saved.getClassroomId()).isNull();
 	}
 

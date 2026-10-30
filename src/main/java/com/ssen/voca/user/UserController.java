@@ -30,6 +30,6 @@ public class UserController {
 				: classroomRepository.findById(user.getClassroomId())
 						.map(found -> new ClassroomSummary(found.getId(), found.getName(), found.getCode()))
 						.orElse(null);
-		return new UserResponse(user.getId(), user.getName(), user.getRole(), user.getEmail(), classroom);
+		return new UserResponse(user.getId(), user.getName(), user.getRole(), user.getEmail(), user.getSchool(), classroom);
 	}
 }

@@ -10,10 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssen.voca.auth.dto.SignupRequest;
-import com.ssen.voca.classroom.Classroom;
-import com.ssen.voca.support.ClassroomFixture;
 import com.ssen.voca.auth.JwtService;
+import com.ssen.voca.classroom.Classroom;
+import com.ssen.voca.classroom.ClassroomRepository;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,14 +33,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class UserControllerTest {
 
-	@Autowired
-	private ClassroomFixture fixture;
-
-	private Classroom classroom;
+	private String school;
 
 	@BeforeEach
-	void newClassroom() {
-		classroom = fixture.newClassroom();
+	void newSchool() {
+		school = "내정보 학교-" + UUID.randomUUID();
 	}
 
 	@Autowired
@@ -54,10 +52,16 @@ class UserControllerTest {
 	@Autowired
 	private JwtService jwtService;
 
+	@Autowired
+	private AppUserRepository appUserRepository;
+
+	@Autowired
+	private ClassroomRepository classroomRepository;
+
 	private JsonNode signup(String name) throws Exception {
 		MvcResult result = mockMvc.perform(post("/api/auth/signup")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content(objectMapper.writeValueAsString(new SignupRequest(classroom.getCode(), name, "1234"))))
+						.content(objectMapper.writeValueAsString(new SignupRequest(school, name, "1234"))))
 				.andReturn();
 		return objectMapper.readTree(result.getResponse().getContentAsString());
 	}
@@ -126,19 +130,18 @@ class UserControllerTest {
 	}
 
 	@Test
-	void studentMeShowsTheClassroom() throws Exception {
-		String token = signupAndGetAccessToken("내정보수업");
+	void studentMeShowsTheSchoolAndNoClassroom() throws Exception {
+		String token = signupAndGetAccessToken("내정보학교");
 
 		mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.classroom.id").value(classroom.getId()))
-				.andExpect(jsonPath("$.classroom.name").value(classroom.getName()))
-				.andExpect(jsonPath("$.classroom.code").value(classroom.getCode()))
+				.andExpect(jsonPath("$.school").value(school))
+				.andExpect(jsonPath("$.classroom").value(nullValue()))
 				.andExpect(jsonPath("$.classCode").doesNotExist());
 	}
 
 	@Test
-	void teacherMeHasNullClassroom() throws Exception {
+	void teacherMeHasNullSchoolAndClassroom() throws Exception {
 		String response = mockMvc.perform(post("/api/teacher/signup")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(Map.of(
@@ -148,13 +151,14 @@ class UserControllerTest {
 		String token = objectMapper.readTree(response).get("accessToken").asText();
 
 		mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(jsonPath("$.school").value(nullValue()))
 				.andExpect(jsonPath("$.classroom").value(nullValue()));
 	}
 
 	@Test
-	void legacyStudentWithoutClassroomStillGetsMe() throws Exception {
-		// 수업이 없던 시절의 학생 행(V6 이전). CHECK 제약이 NOT VALID라 기존 행은 남을 수 있고, 새 토큰은 직접 만든다.
-		jdbcTemplate.execute("ALTER TABLE app_user DROP CONSTRAINT ck_app_user_student_classroom");
+	void legacyStudentWithoutSchoolStillGetsMe() throws Exception {
+		// 학교가 없던 시절의 학생 행(V7 이전). CHECK 제약이 NOT VALID라 기존 행은 남을 수 있어서, 테스트 트랜잭션 안에서만 제약을 풀어 만들고 토큰은 직접 만든다.
+		jdbcTemplate.execute("ALTER TABLE app_user DROP CONSTRAINT ck_app_user_student_school");
 		Long id = jdbcTemplate.queryForObject(
 				"INSERT INTO app_user (name, name_key, secret_hash, role) VALUES ('옛학생', '옛학생', 'h', 'STUDENT') RETURNING id",
 				Long.class);
@@ -163,7 +167,29 @@ class UserControllerTest {
 		mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.name").value("옛학생"))
+				.andExpect(jsonPath("$.school").value(nullValue()))
 				.andExpect(jsonPath("$.classroom").value(nullValue()));
+	}
+
+	@Test
+	void legacyStudentWithClassroomButNoSchoolStillShowsTheClassroom() throws Exception {
+		jdbcTemplate.execute("ALTER TABLE app_user DROP CONSTRAINT ck_app_user_student_school");
+		AppUser teacher = appUserRepository.saveAndFlush(
+				AppUser.teacher("옛수업교사", "옛수업교사", "legacy-classroom-teacher@example.com", "h"));
+		Classroom classroom = classroomRepository.saveAndFlush(
+				new Classroom(teacher.getId(), "옛수업", "L" + UUID.randomUUID().toString().substring(0, 5).toUpperCase()));
+		Long id = jdbcTemplate.queryForObject(
+				"INSERT INTO app_user (name, name_key, secret_hash, classroom_id, role) "
+						+ "VALUES ('옛수업학생', '옛수업학생', 'h', ?, 'STUDENT') RETURNING id",
+				Long.class, classroom.getId());
+		String token = jwtService.generateAccessToken(id, "옛수업학생", "STUDENT");
+
+		mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.school").value(nullValue()))
+				.andExpect(jsonPath("$.classroom.id").value(classroom.getId()))
+				.andExpect(jsonPath("$.classroom.name").value("옛수업"))
+				.andExpect(jsonPath("$.classroom.code").value(classroom.getCode()));
 	}
 
 	@Test

@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -49,7 +50,7 @@ class CorsTest {
 		mockMvc.perform(post("/api/auth/login")
 						.header(HttpHeaders.ORIGIN, "http://localhost:8099")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"classCode\":\"ZZZZZZ\",\"name\":\"코스없는사람\",\"phoneLast4\":\"1234\"}"))
+						.content("{\"school\":\"코스학교-" + UUID.randomUUID() + "\",\"name\":\"코스없는사람\",\"phoneLast4\":\"1234\"}"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:8099"));
 	}
@@ -59,7 +60,7 @@ class CorsTest {
 		mockMvc.perform(post("/api/auth/login")
 						.header(HttpHeaders.ORIGIN, "http://evil.example")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"classCode\":\"ZZZZZZ\",\"name\":\"코스없는사람\",\"phoneLast4\":\"1234\"}"))
+						.content("{\"school\":\"코스학교-" + UUID.randomUUID() + "\",\"name\":\"코스없는사람\",\"phoneLast4\":\"1234\"}"))
 				.andExpect(status().isForbidden())
 				.andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
 	}
