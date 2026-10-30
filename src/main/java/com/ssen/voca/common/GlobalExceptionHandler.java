@@ -5,6 +5,7 @@ import com.ssen.voca.auth.InvalidEmailException;
 import com.ssen.voca.auth.InvalidInviteCodeException;
 import com.ssen.voca.auth.InvalidNameException;
 import com.ssen.voca.auth.InvalidPasswordException;
+import com.ssen.voca.auth.InvalidSchoolException;
 import com.ssen.voca.auth.InvalidTokenException;
 import com.ssen.voca.auth.StudentAlreadyExistsException;
 import com.ssen.voca.auth.TeacherEmailExistsException;
@@ -57,7 +58,7 @@ public class GlobalExceptionHandler {
 		return message(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
 	}
 
-	@ExceptionHandler({InvalidNameException.class, InvalidEmailException.class})
+	@ExceptionHandler({InvalidNameException.class, InvalidSchoolException.class, InvalidEmailException.class})
 	public ResponseEntity<Map<String, String>> handleInvalidName(RuntimeException e) {
 		return message(HttpStatus.BAD_REQUEST, e.getMessage());
 	}
