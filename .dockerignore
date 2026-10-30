@@ -1,0 +1,12 @@
+.git
+.gradle
+.idea
+.vscode
+.superpowers
+bin
+build
+docs
+*.md
+.env
+.env.*
+docker-compose.yml

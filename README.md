@@ -87,3 +87,25 @@
 
 브랜치·커밋·PR 규칙은 [CONTRIBUTING.md](./CONTRIBUTING.md)를 반드시 읽고 따라주세요.
 `main`, `develop`에는 직접 push할 수 없으며 모든 작업은 이슈 → 브랜치 → PR 순서로 진행합니다.
+
+## 배포 (Railway)
+
+`Dockerfile`과 `railway.json`이 있어서 Railway가 저장소를 그대로 빌드·실행합니다. 서버는 Railway가 넣어 주는 `PORT`로 뜨고 헬스체크는 `/api/health`입니다. DB 마이그레이션(Flyway)은 서버가 시작할 때 자동으로 적용됩니다.
+
+1. Railway에서 **New Project → Deploy from GitHub repo**로 이 저장소를 연결하고 배포 브랜치를 `develop`으로 둡니다(이후 `develop`에 머지될 때마다 자동 배포).
+2. 같은 프로젝트에 **PostgreSQL**을 추가합니다.
+3. 서버 서비스의 **Variables**에 다음을 넣습니다.
+
+| 변수 | 값 |
+|---|---|
+| `SPRING_PROFILES_ACTIVE` | `prod` |
+| `DB_URL` | `jdbc:postgresql://${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}` |
+| `DB_USERNAME` | `${{Postgres.PGUSER}}` |
+| `DB_PASSWORD` | `${{Postgres.PGPASSWORD}}` |
+| `JWT_SECRET` | 긴 무작위 문자열(예: `openssl rand -base64 48`). 바꾸면 기존 로그인이 모두 풀립니다 |
+| `TEACHER_INVITE_CODE` | 교사 가입 코드(임의로 정해 교사에게만 알려 줍니다) |
+| `CORS_ALLOWED_ORIGINS` | 앱 주소(예: `https://내앱.vercel.app`). 쉼표로 여러 개 가능, 슬래시로 끝내지 않습니다 |
+
+4. **Settings → Networking → Generate Domain**으로 공개 주소를 만들고, 앱(Vercel)의 `EXPO_PUBLIC_API_BASE_URL`에 그 주소(`https://…up.railway.app`)를 넣습니다.
+
+`JWT_SECRET`과 `TEACHER_INVITE_CODE`에는 기본값이 없어서 빠뜨리면 서버가 시작하지 않습니다. 시도 제한은 서버 메모리에 있어서 서비스를 한 개(replica 1)로만 돌려야 합니다.

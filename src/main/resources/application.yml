@@ -1,3 +1,7 @@
+server:
+  # Railway 같은 호스팅이 넣어 주는 PORT를 쓴다. 없으면 8080.
+  port: ${PORT:8080}
+
 spring:
   application:
     name: ssen-server
