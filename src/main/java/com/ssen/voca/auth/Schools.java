@@ -21,13 +21,14 @@ final class Schools {
 		return clean(school).replaceAll("(?U)\\s+", " ").strip();
 	}
 
-	/** 정규화한 학교 키. 모든 공백을 지운다. 비었거나 100자를 넘으면 제한 카운터·DB에 닿기 전에 거절한다. */
+	/** 정규화한 학교 키. 모든 공백을 지운다. 비었거나 키나 표시값이 100자를 넘으면 제한 카운터·DB에 닿기 전에 거절한다. */
 	static String key(String school) {
 		String key = clean(school).replaceAll("(?U)\\s+", "").toLowerCase(Locale.ROOT);
 		if (key.isEmpty()) {
 			throw new InvalidSchoolException(InvalidSchoolException.BLANK);
 		}
-		if (key.length() > MAX_LENGTH) {
+		// NFC로 글자가 늘어나는 입력은 표시값이 키보다 길 수 있어서 둘 다 본다 (둘 다 VARCHAR(100)).
+		if (key.length() > MAX_LENGTH || display(school).length() > MAX_LENGTH) {
 			throw new InvalidSchoolException(InvalidSchoolException.TOO_LONG);
 		}
 		return key;

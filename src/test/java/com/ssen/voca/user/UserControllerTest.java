@@ -11,6 +11,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ssen.voca.auth.dto.SignupRequest;
 import com.ssen.voca.auth.JwtService;
+import com.ssen.voca.classroom.Classroom;
+import com.ssen.voca.classroom.ClassroomRepository;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +51,12 @@ class UserControllerTest {
 
 	@Autowired
 	private JwtService jwtService;
+
+	@Autowired
+	private AppUserRepository appUserRepository;
+
+	@Autowired
+	private ClassroomRepository classroomRepository;
 
 	private JsonNode signup(String name) throws Exception {
 		MvcResult result = mockMvc.perform(post("/api/auth/signup")
@@ -161,6 +169,27 @@ class UserControllerTest {
 				.andExpect(jsonPath("$.name").value("옛학생"))
 				.andExpect(jsonPath("$.school").value(nullValue()))
 				.andExpect(jsonPath("$.classroom").value(nullValue()));
+	}
+
+	@Test
+	void legacyStudentWithClassroomButNoSchoolStillShowsTheClassroom() throws Exception {
+		jdbcTemplate.execute("ALTER TABLE app_user DROP CONSTRAINT ck_app_user_student_school");
+		AppUser teacher = appUserRepository.saveAndFlush(
+				AppUser.teacher("옛수업교사", "옛수업교사", "legacy-classroom-teacher@example.com", "h"));
+		Classroom classroom = classroomRepository.saveAndFlush(
+				new Classroom(teacher.getId(), "옛수업", "L" + UUID.randomUUID().toString().substring(0, 5).toUpperCase()));
+		Long id = jdbcTemplate.queryForObject(
+				"INSERT INTO app_user (name, name_key, secret_hash, classroom_id, role) "
+						+ "VALUES ('옛수업학생', '옛수업학생', 'h', ?, 'STUDENT') RETURNING id",
+				Long.class, classroom.getId());
+		String token = jwtService.generateAccessToken(id, "옛수업학생", "STUDENT");
+
+		mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.school").value(nullValue()))
+				.andExpect(jsonPath("$.classroom.id").value(classroom.getId()))
+				.andExpect(jsonPath("$.classroom.name").value("옛수업"))
+				.andExpect(jsonPath("$.classroom.code").value(classroom.getCode()));
 	}
 
 	@Test

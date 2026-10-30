@@ -89,7 +89,8 @@ public class AuthService {
 	}
 
 	private static String throttleKey(String schoolKey, String nameKey) {
-		return THROTTLE_PREFIX + schoolKey + ":" + nameKey;
+		// 학교 키 길이를 앞에 붙여 ('a:b','c')와 ('a','b:c')가 같은 키가 되지 않게 한다 (이름 키가 맨 뒤라 나머지는 모호하지 않다).
+		return THROTTLE_PREFIX + schoolKey.length() + ":" + schoolKey + ":" + nameKey;
 	}
 
 	private AppUser findMatch(List<AppUser> candidates, String pin) {

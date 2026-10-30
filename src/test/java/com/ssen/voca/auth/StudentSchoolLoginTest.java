@@ -189,7 +189,56 @@ class StudentSchoolLoginTest {
 					.andExpect(status().isBadRequest())
 					.andExpect(jsonPath("$.message").value(SCHOOL_TOO_LONG));
 		}
-		auth("/api/auth/signup", "가".repeat(100), "학교길이", "1234").andExpect(status().isCreated());
+		// 정확히 100자(UUID 32자 + 68자)는 가입된다.
+		String exact = UUID.randomUUID().toString().replace("-", "") + "가".repeat(68);
+		assertThat(exact).hasSize(100);
+		auth("/api/auth/signup", exact, "학교길이", "1234").andExpect(status().isCreated());
+	}
+
+	@Test
+	void displayLongerThanTheColumnAfterNormalizationIsRejectedWithoutUsingTheBudget() throws Exception {
+		// U+0344는 NFC에서 두 글자로 풀려 원문·키는 100자인데 표시값은 149자가 된다 (DB 열은 100자).
+		String expanding = "\u0344 ".repeat(50);
+		for (String path : new String[] {"/api/auth/signup", "/api/auth/login"}) {
+			for (int i = 0; i < 6; i++) {
+				auth(path, expanding, "학교확장", "1234")
+						.andExpect(status().isBadRequest())
+						.andExpect(jsonPath("$.message").value(SCHOOL_TOO_LONG));
+			}
+		}
+	}
+
+	@Test
+	void schoolThatGrowsPastTheLimitWhenLowerCasedIsRejected() throws Exception {
+		// 'İ' 60자는 @Size를 통과하지만 소문자화하면 120자가 된다.
+		for (String path : new String[] {"/api/auth/signup", "/api/auth/login"}) {
+			auth(path, "\u0130".repeat(60), "학교소문자", "1234")
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.message").value(SCHOOL_TOO_LONG));
+		}
+	}
+
+	@Test
+	void composedAndDecomposedHangulSchoolsAreTheSameSchool() throws Exception {
+		String composed = "한국고" + UUID.randomUUID();
+		String decomposed = java.text.Normalizer.normalize(composed, java.text.Normalizer.Form.NFD);
+		assertThat(decomposed).isNotEqualTo(composed);
+		auth("/api/auth/signup", composed, "학교조합", "1234").andExpect(status().isCreated());
+
+		auth("/api/auth/login", decomposed, "학교조합", "1234").andExpect(status().isOk());
+		auth("/api/auth/signup", decomposed, "학교조합", "1234").andExpect(status().isConflict());
+	}
+
+	@Test
+	void ambiguousColonSplitsOfSchoolAndNameHaveSeparateBudgets() throws Exception {
+		// 길이 접두사가 없으면 두 쌍 모두 student:<id>:b:c 키가 되어 예산을 나눠 쓴다.
+		String id = UUID.randomUUID().toString();
+		for (int i = 0; i < 5; i++) {
+			auth("/api/auth/login", id + ":b", "c", "0000").andExpect(status().isUnauthorized());
+		}
+		auth("/api/auth/login", id + ":b", "c", "0000").andExpect(status().isTooManyRequests());
+
+		auth("/api/auth/login", id, "b:c", "0000").andExpect(status().isUnauthorized());
 	}
 
 	@Test

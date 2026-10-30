@@ -44,6 +44,11 @@ class SchoolsTest {
 		assertThatThrownBy(() -> Schools.key("가".repeat(101))).isInstanceOf(InvalidSchoolException.class)
 				.hasMessage(InvalidSchoolException.TOO_LONG);
 		// 'İ'는 소문자화하면 두 글자(i + 결합점)가 되어 100자를 넘을 수 있다.
+		// U+0344는 NFC에서 두 글자로 풀리고 사이 공백은 표시값에만 남아, 키는 100자인데 표시값은 149자가 된다.
+		String expanding = "\u0344 ".repeat(50);
+		assertThat(Schools.display(expanding)).hasSize(149);
+		assertThatThrownBy(() -> Schools.key(expanding)).isInstanceOf(InvalidSchoolException.class)
+				.hasMessage(InvalidSchoolException.TOO_LONG);
 		assertThatThrownBy(() -> Schools.key("İ".repeat(60))).isInstanceOf(InvalidSchoolException.class)
 				.hasMessage(InvalidSchoolException.TOO_LONG);
 	}
