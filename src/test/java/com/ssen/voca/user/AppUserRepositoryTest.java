@@ -3,8 +3,6 @@ package com.ssen.voca.user;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
-import com.ssen.voca.classroom.Classroom;
-import com.ssen.voca.support.ClassroomFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,17 +15,13 @@ class AppUserRepositoryTest {
 	@Autowired
 	private AppUserRepository appUserRepository;
 
-	@Autowired
-	private ClassroomFixture fixture;
-
 	@Test
 	void savesAndFindsAllByNameKey() {
-		Classroom classroom = fixture.newClassroom();
-		appUserRepository.save(new AppUser("김학생", "repo-김학생", "hash-1", classroom.getId()));
-		appUserRepository.save(new AppUser("김학생", "repo-김학생", "hash-2", classroom.getId()));
+		appUserRepository.save(new AppUser("김학생", "repo-김학생", "hash-1", "저장소학교", "repo-school"));
+		appUserRepository.save(new AppUser("김학생", "repo-김학생", "hash-2", "저장소학교", "repo-school"));
 
-		assertThat(appUserRepository.findAllByClassroomIdAndNameKeyAndRole(
-				classroom.getId(), "repo-김학생", AppUser.STUDENT))
+		assertThat(appUserRepository.findAllBySchoolKeyAndNameKeyAndRole(
+				"repo-school", "repo-김학생", AppUser.STUDENT))
 				.extracting(AppUser::getSecretHash, AppUser::getRole)
 				.containsExactlyInAnyOrder(
 						tuple("hash-1", "STUDENT"),
@@ -36,9 +30,7 @@ class AppUserRepositoryTest {
 
 	@Test
 	void findAllByNameKeyReturnsEmptyForUnknownName() {
-		Classroom classroom = fixture.newClassroom();
-
-		assertThat(appUserRepository.findAllByClassroomIdAndNameKeyAndRole(
-				classroom.getId(), "repo-nobody", AppUser.STUDENT)).isEmpty();
+		assertThat(appUserRepository.findAllBySchoolKeyAndNameKeyAndRole(
+				"repo-school", "repo-nobody", AppUser.STUDENT)).isEmpty();
 	}
 }

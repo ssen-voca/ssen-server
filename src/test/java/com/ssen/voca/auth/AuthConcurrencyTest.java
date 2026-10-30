@@ -3,16 +3,13 @@ package com.ssen.voca.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
-import com.ssen.voca.classroom.Classroom;
-import com.ssen.voca.support.ClassroomFixture;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -20,7 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-// 여러 스레드에서 요청해야 하므로 @Transactional을 쓰지 않는다 (없는 이름만 쓰고, 수업·교사 행은 @AfterEach에서 지운다).
+// 여러 스레드에서 요청해야 하므로 @Transactional을 쓰지 않는다 (없는 학교·이름만 써서 DB 행을 만들지 않는다).
 @SpringBootTest
 @AutoConfigureMockMvc
 class AuthConcurrencyTest {
@@ -28,25 +25,9 @@ class AuthConcurrencyTest {
 	@Autowired
 	private MockMvc mockMvc;
 
-	@Autowired
-	private ClassroomFixture fixture;
-
-	private Classroom classroom;
-
-	@BeforeEach
-	void newClassroom() {
-		classroom = fixture.newClassroom();
-	}
-
-	@AfterEach
-	void cleanUp() {
-		if (classroom != null) {
-			fixture.deleteClassroomAndTeacher(classroom);
-		}
-	}
-
 	@Test
 	void parallelWrongPinLoginsNeverGetMoreThanMaxPastTheLimiter() throws Exception {
+		String school = "동시성학교-" + UUID.randomUUID();
 		int threads = 20;
 		ExecutorService pool = Executors.newFixedThreadPool(threads);
 		CountDownLatch start = new CountDownLatch(1);
@@ -56,7 +37,7 @@ class AuthConcurrencyTest {
 				start.await();
 				return mockMvc.perform(post("/api/auth/login")
 								.contentType(MediaType.APPLICATION_JSON)
-								.content("{\"classCode\":\"" + classroom.getCode()
+								.content("{\"school\":\"" + school
 									+ "\",\"name\":\"동시성없는사람\",\"phoneLast4\":\"0000\"}"))
 						.andReturn().getResponse().getStatus();
 			}));

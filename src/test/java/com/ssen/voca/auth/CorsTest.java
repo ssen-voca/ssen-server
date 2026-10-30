@@ -49,7 +49,7 @@ class CorsTest {
 		mockMvc.perform(post("/api/auth/login")
 						.header(HttpHeaders.ORIGIN, "http://localhost:8099")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"classCode\":\"ZZZZZZ\",\"name\":\"코스없는사람\",\"phoneLast4\":\"1234\"}"))
+						.content("{\"school\":\"코스학교\",\"name\":\"코스없는사람\",\"phoneLast4\":\"1234\"}"))
 				.andExpect(status().isUnauthorized())
 				.andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:8099"));
 	}
@@ -59,7 +59,7 @@ class CorsTest {
 		mockMvc.perform(post("/api/auth/login")
 						.header(HttpHeaders.ORIGIN, "http://evil.example")
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"classCode\":\"ZZZZZZ\",\"name\":\"코스없는사람\",\"phoneLast4\":\"1234\"}"))
+						.content("{\"school\":\"코스학교\",\"name\":\"코스없는사람\",\"phoneLast4\":\"1234\"}"))
 				.andExpect(status().isForbidden())
 				.andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
 	}
