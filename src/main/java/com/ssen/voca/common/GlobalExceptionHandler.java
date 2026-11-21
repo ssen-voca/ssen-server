@@ -74,13 +74,18 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	public ResponseEntity<Map<String, String>> handleUnreadable(HttpMessageNotReadableException e) {
+		for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+			if (cause instanceof RequestSizeLimitFilter.TooLargeException) {
+				return message(HttpStatus.PAYLOAD_TOO_LARGE, cause.getMessage());
+			}
+		}
 		return message(HttpStatus.BAD_REQUEST, "요청 형식이 올바르지 않아요.");
 	}
 
-    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
-    public ResponseEntity<Map<String,String>> handleStatus(org.springframework.web.server.ResponseStatusException e) {
-        return ResponseEntity.status(e.getStatusCode()).body(Map.of("message", e.getReason() == null ? "요청에 실패했어요." : e.getReason()));
-    }
+	@ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+	public ResponseEntity<Map<String, String>> handleStatus(org.springframework.web.server.ResponseStatusException e) {
+		return ResponseEntity.status(e.getStatusCode()).body(Map.of("message", e.getReason() == null ? "요청에 실패했어요." : e.getReason()));
+	}
 
 	private static ResponseEntity<Map<String, String>> message(HttpStatus status, String text) {
 		return ResponseEntity.status(status).body(Map.of("message", text));
