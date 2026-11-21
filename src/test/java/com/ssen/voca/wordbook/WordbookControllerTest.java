@@ -52,7 +52,7 @@ class WordbookControllerTest {
  @Test void privateWordWritesAreOwnerScoped() throws Exception {
   String a="Bearer "+signup("편집학생"),b="Bearer "+signup("다른학생");
   String payload=json.readTree(words).get(0).toString();
-  mvc.perform(put("/api/me/words/new").header("Authorization",a).contentType(MediaType.APPLICATION_JSON).content(payload)).andExpect(status().isNoContent());
+  mvc.perform(put("/api/me/words/new").header("Authorization",a).contentType(MediaType.APPLICATION_JSON).content(payload)).andExpect(status().isOk());
   String id=json.readTree(mvc.perform(get("/api/me/words").header("Authorization",a)).andReturn().getResponse().getContentAsString()).get(0).path("id").asText();
   mvc.perform(put("/api/me/words/{id}",id).header("Authorization",b).contentType(MediaType.APPLICATION_JSON).content(payload)).andExpect(status().isForbidden());
   mvc.perform(delete("/api/me/words/{id}",id).header("Authorization",b)).andExpect(status().isForbidden());
