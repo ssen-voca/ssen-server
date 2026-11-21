@@ -64,6 +64,7 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers("/api/health", "/api/auth/**", "/error").permitAll()
 						.requestMatchers("/api/teacher/**").hasRole("TEACHER")
+						.requestMatchers("/api/me/classroom").hasRole("STUDENT")
 						.anyRequest().authenticated())
 				.exceptionHandling(exception -> exception
 						.authenticationEntryPoint((request, response, authException) ->
