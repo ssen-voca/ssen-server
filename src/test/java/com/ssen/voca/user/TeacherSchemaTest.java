@@ -3,6 +3,7 @@ package com.ssen.voca.user;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,51 +22,64 @@ class TeacherSchemaTest {
 	private JdbcTemplate jdbcTemplate;
 
 	@Test
-	void teacherIsSavedWithEmailAndRole() {
-		appUserRepository.saveAndFlush(AppUser.teacher("스키마교사", "스키마교사", "schema-teacher@example.com", "hash"));
+	void teacherIsSavedWithSchoolIdentityAndNoEmail() {
+		AppUser saved = appUserRepository.saveAndFlush(
+				AppUser.teacher("스키마교사", "스키마교사", "hash", "스키마 학원", "스키마학원"));
 
-		AppUser found = appUserRepository.findByEmail("schema-teacher@example.com").orElseThrow();
-		assertThat(found.getRole()).isEqualTo(AppUser.TEACHER);
-		assertThat(found.getEmail()).isEqualTo("schema-teacher@example.com");
-		assertThat(appUserRepository.existsByEmail("schema-teacher@example.com")).isTrue();
-		assertThat(appUserRepository.existsByEmail("nobody@example.com")).isFalse();
+		assertThat(saved.getRole()).isEqualTo(AppUser.TEACHER);
+		assertThat(saved.getEmail()).isNull();
+		assertThat(saved.getSchoolKey()).isEqualTo("스키마학원");
+		assertThat(saved.getClassroomId()).isNull();
 	}
 
 	@Test
-	void teacherRowWithoutEmailViolatesCheckConstraint() {
+	void teacherRowWithoutEmailAndSchoolViolatesCheckConstraint() {
 		assertThatThrownBy(() -> jdbcTemplate.update(
 				"INSERT INTO app_user (name, name_key, secret_hash, role) VALUES ('교사', '교사', 'h', 'TEACHER')"))
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	@Test
-	void duplicateEmailViolatesUniqueIndex() {
-		appUserRepository.saveAndFlush(AppUser.teacher("중복가", "중복가", "dup-schema@example.com", "h"));
+	void legacyTeacherRowWithEmailOnlyIsStillAllowed() {
+		jdbcTemplate.update("INSERT INTO app_user (name, name_key, secret_hash, email, role) "
+				+ "VALUES ('옛교사', '옛교사', 'h', 'legacy-schema@example.com', 'TEACHER')");
 
-		assertThatThrownBy(() -> appUserRepository.saveAndFlush(
-				AppUser.teacher("중복나", "중복나", "dup-schema@example.com", "h")))
+		assertThat(jdbcTemplate.queryForObject(
+				"SELECT count(*) FROM app_user WHERE email = 'legacy-schema@example.com'", Integer.class)).isEqualTo(1);
+	}
+
+	@Test
+	void roleFilterSeparatesTeacherAndStudentWithSameSchoolAndName() {
+		appUserRepository.saveAndFlush(AppUser.teacher("스키마동명", "스키마동명", "h", "스키마학교", "스키마학교"));
+		appUserRepository.saveAndFlush(new AppUser("스키마동명", "스키마동명", "h", "스키마학교", "스키마학교"));
+
+		assertThat(appUserRepository.findAllBySchoolKeyAndNameKeyAndRole("스키마학교", "스키마동명", AppUser.STUDENT))
+				.extracting(AppUser::getRole).containsExactly(AppUser.STUDENT);
+		assertThat(appUserRepository.findAllBySchoolKeyAndNameKeyAndRole("스키마학교", "스키마동명", AppUser.TEACHER))
+				.extracting(AppUser::getRole).containsExactly(AppUser.TEACHER);
+		assertThat(appUserRepository.findAllBySchoolKeyAndNameKeyAndRoleIn(
+				"스키마학교", "스키마동명", List.of(AppUser.STUDENT, AppUser.TEACHER)))
+				.extracting(AppUser::getRole).containsExactlyInAnyOrder(AppUser.STUDENT, AppUser.TEACHER);
+	}
+
+	@Test
+	void duplicateEmailViolatesUniqueIndex() {
+		String insert = "INSERT INTO app_user (name, name_key, secret_hash, email, role) "
+				+ "VALUES (?, ?, 'h', 'dup-schema@example.com', 'TEACHER')";
+		jdbcTemplate.update(insert, "중복가", "중복가");
+
+		assertThatThrownBy(() -> jdbcTemplate.update(insert, "중복나", "중복나"))
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
 	@Test
 	void studentsWithoutEmailCanCoexist() {
-		appUserRepository.saveAndFlush(new AppUser("무이메일가", "스키마무이메일", "h", "스키마학교", "스키마학교"));
-		appUserRepository.saveAndFlush(new AppUser("무이메일나", "스키마무이메일", "h", "스키마학교", "스키마학교"));
+		String insert = "INSERT INTO app_user (name, name_key, secret_hash, school, school_key, role) "
+				+ "VALUES (?, '스키마무이메일', 'h', '스키마학교', '스키마학교', 'STUDENT')";
+		jdbcTemplate.update(insert, "무이메일가");
+		jdbcTemplate.update(insert, "무이메일나");
 
-		assertThat(appUserRepository.findAllBySchoolKeyAndNameKeyAndRole(
-				"스키마학교", "스키마무이메일", AppUser.STUDENT)).hasSize(2);
-	}
-
-	@Test
-	void roleFilterSeparatesTeacherAndStudentWithSameNameKey() {
-		appUserRepository.saveAndFlush(AppUser.teacher("스키마동명", "스키마동명", "same-name@example.com", "h"));
-		appUserRepository.saveAndFlush(new AppUser("스키마동명", "스키마동명", "h", "스키마학교", "스키마학교"));
-
-		assertThat(appUserRepository.findAllBySchoolKeyAndNameKeyAndRole(
-				"스키마학교", "스키마동명", AppUser.STUDENT))
-				.extracting(AppUser::getRole).containsExactly(AppUser.STUDENT);
-		// 교사는 학교가 없으므로 학교 범위 학생 조회에도, 교사 역할 조회에도 잡히지 않는다.
-		assertThat(appUserRepository.findAllBySchoolKeyAndNameKeyAndRole(
-				"스키마학교", "스키마동명", AppUser.TEACHER)).isEmpty();
+		assertThat(appUserRepository.findAllBySchoolKeyAndNameKeyAndRole("스키마학교", "스키마무이메일", AppUser.STUDENT))
+				.hasSize(2);
 	}
 }

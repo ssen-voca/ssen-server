@@ -5,11 +5,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssen.voca.support.TeacherFixture;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
@@ -32,8 +32,8 @@ class TeacherClassroomControllerTest {
 	@Autowired
 	private ObjectMapper objectMapper;
 
-	@Value("${app.teacher.invite-code}")
-	private String inviteCode;
+	@Autowired
+	private TeacherFixture teacherFixture;
 
 	private JsonNode postForJson(String path, Map<String, String> body) throws Exception {
 		String response = mockMvc.perform(MockMvcRequestBuilders.post(path)
@@ -43,13 +43,8 @@ class TeacherClassroomControllerTest {
 		return objectMapper.readTree(response);
 	}
 
-	private JsonNode teacherTokens(String name, String email) throws Exception {
-		return postForJson("/api/teacher/signup",
-				Map.of("name", name, "email", email, "password", "password1", "inviteCode", inviteCode));
-	}
-
-	private String teacherToken(String name, String email) throws Exception {
-		return teacherTokens(name, email).get("accessToken").asText();
+	private String teacherToken(String name) {
+		return teacherFixture.create(name).token();
 	}
 
 	private ResultActions createClassroom(String token, String name) throws Exception {
@@ -66,7 +61,7 @@ class TeacherClassroomControllerTest {
 
 	@Test
 	void createReturns201WithCode() throws Exception {
-		String token = teacherToken("수업교사", "class-create@example.com");
+		String token = teacherToken("수업교사");
 
 		createClassroom(token, "겨울 특강 A반")
 				.andExpect(status().isCreated())
@@ -78,7 +73,7 @@ class TeacherClassroomControllerTest {
 
 	@Test
 	void createTrimsTheName() throws Exception {
-		String token = teacherToken("수업교사둘", "class-trim@example.com");
+		String token = teacherToken("수업교사둘");
 
 		createClassroom(token, "  B반  ")
 				.andExpect(status().isCreated())
@@ -87,7 +82,7 @@ class TeacherClassroomControllerTest {
 
 	@Test
 	void blankOrTooLongNameIsRejected() throws Exception {
-		String token = teacherToken("수업교사셋", "class-name@example.com");
+		String token = teacherToken("수업교사셋");
 
 		createClassroom(token, "　")
 				.andExpect(status().isBadRequest())
@@ -99,8 +94,8 @@ class TeacherClassroomControllerTest {
 
 	@Test
 	void listShowsOnlyMyClassroomsNewestFirst() throws Exception {
-		String tokenA = teacherToken("목록교사가", "class-list-a@example.com");
-		String tokenB = teacherToken("목록교사나", "class-list-b@example.com");
+		String tokenA = teacherToken("목록교사가");
+		String tokenB = teacherToken("목록교사나");
 		createClassroom(tokenA, "A-1").andExpect(status().isCreated());
 		createClassroom(tokenB, "B-1").andExpect(status().isCreated());
 		createClassroom(tokenA, "A-2").andExpect(status().isCreated());
@@ -128,8 +123,8 @@ class TeacherClassroomControllerTest {
 
 	@Test
 	void refreshedAccessTokenStillWorks() throws Exception {
-		JsonNode tokens = teacherTokens("리프교사", "class-refresh@example.com");
-		String refreshed = postForJson("/api/auth/refresh", Map.of("refreshToken", tokens.get("refreshToken").asText()))
+		TeacherFixture.Teacher teacher = teacherFixture.create("리프교사");
+		String refreshed = postForJson("/api/auth/refresh", Map.of("refreshToken", teacher.refreshToken()))
 				.get("accessToken").asText();
 
 		createClassroom(refreshed, "리프 수업").andExpect(status().isCreated());

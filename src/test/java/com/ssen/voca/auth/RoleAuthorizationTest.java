@@ -6,8 +6,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssen.voca.support.TeacherFixture;
 import com.ssen.voca.user.AppUser;
-import com.ssen.voca.user.AppUserRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
@@ -38,7 +38,7 @@ class RoleAuthorizationTest {
 	private JwtService jwtService;
 
 	@Autowired
-	private AppUserRepository appUserRepository;
+	private TeacherFixture teacherFixture;
 
 	@Autowired
 	private ObjectMapper objectMapper;
@@ -105,9 +105,7 @@ class RoleAuthorizationTest {
 
 	@Test
 	void refreshKeepsTeacherRole() throws Exception {
-		AppUser teacher = appUserRepository.save(
-				AppUser.teacher("교사리프", "교사리프", "refresh-teacher@example.com", "hash"));
-		String refreshToken = jwtService.generateRefreshToken(teacher.getId());
+		String refreshToken = teacherFixture.create("교사리프").refreshToken();
 
 		String body = mockMvc.perform(post("/api/auth/refresh")
 						.contentType(MediaType.APPLICATION_JSON)

@@ -13,12 +13,11 @@ import com.ssen.voca.auth.dto.SignupRequest;
 import com.ssen.voca.auth.JwtService;
 import com.ssen.voca.classroom.Classroom;
 import com.ssen.voca.classroom.ClassroomRepository;
-import java.util.Map;
+import com.ssen.voca.support.TeacherFixture;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
@@ -51,9 +50,6 @@ class UserControllerTest {
 
 	@Autowired
 	private JwtService jwtService;
-
-	@Autowired
-	private AppUserRepository appUserRepository;
 
 	@Autowired
 	private ClassroomRepository classroomRepository;
@@ -100,23 +96,33 @@ class UserControllerTest {
 				.andExpect(status().isUnauthorized());
 	}
 
-	@Value("${app.teacher.invite-code}")
-	private String inviteCode;
+	@Autowired
+	private TeacherFixture teacherFixture;
 
 	@Test
-	void teacherMeIncludesEmailAndRole() throws Exception {
-		String response = mockMvc.perform(post("/api/teacher/signup")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(objectMapper.writeValueAsString(Map.of(
-								"name", "내정보교사", "email", "me-teacher@example.com",
-								"password", "password1", "inviteCode", inviteCode))))
-				.andReturn().getResponse().getContentAsString();
-		String token = objectMapper.readTree(response).get("accessToken").asText();
+	void legacyEmailTeacherMeIncludesEmailAndRole() throws Exception {
+		// 이메일로 가입했던 옛 교사 행(V9 이전). 학교 없이 이메일만 있어도 CHECK를 통과한다.
+		Long id = jdbcTemplate.queryForObject(
+				"INSERT INTO app_user (name, name_key, secret_hash, email, role) "
+						+ "VALUES ('내정보교사', '내정보교사', 'h', 'me-teacher@example.com', 'TEACHER') RETURNING id",
+				Long.class);
+		String token = jwtService.generateAccessToken(id, "내정보교사", "TEACHER");
 
 		mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.role").value("TEACHER"))
 				.andExpect(jsonPath("$.email").value("me-teacher@example.com"));
+	}
+
+	@Test
+	void teacherMeShowsRoleAndSchoolWithNullEmail() throws Exception {
+		TeacherFixture.Teacher teacher = teacherFixture.create("내정보교사");
+
+		mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + teacher.token()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.role").value("TEACHER"))
+				.andExpect(jsonPath("$.school").value(teacher.school()))
+				.andExpect(jsonPath("$.email").value(nullValue()));
 	}
 
 	@Test
@@ -141,17 +147,10 @@ class UserControllerTest {
 	}
 
 	@Test
-	void teacherMeHasNullSchoolAndClassroom() throws Exception {
-		String response = mockMvc.perform(post("/api/teacher/signup")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content(objectMapper.writeValueAsString(Map.of(
-								"name", "내정보교사수업", "email", "me-teacher-classroom@example.com",
-								"password", "password1", "inviteCode", inviteCode))))
-				.andReturn().getResponse().getContentAsString();
-		String token = objectMapper.readTree(response).get("accessToken").asText();
+	void teacherMeHasNoClassroom() throws Exception {
+		String token = teacherFixture.create("내정보교사수업").token();
 
 		mockMvc.perform(get("/api/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
-				.andExpect(jsonPath("$.school").value(nullValue()))
 				.andExpect(jsonPath("$.classroom").value(nullValue()));
 	}
 
@@ -174,10 +173,9 @@ class UserControllerTest {
 	@Test
 	void legacyStudentWithClassroomButNoSchoolStillShowsTheClassroom() throws Exception {
 		jdbcTemplate.execute("ALTER TABLE app_user DROP CONSTRAINT ck_app_user_student_school");
-		AppUser teacher = appUserRepository.saveAndFlush(
-				AppUser.teacher("옛수업교사", "옛수업교사", "legacy-classroom-teacher@example.com", "h"));
+		Long teacherId = teacherFixture.create("옛수업교사").id();
 		Classroom classroom = classroomRepository.saveAndFlush(
-				new Classroom(teacher.getId(), "옛수업", "L" + UUID.randomUUID().toString().substring(0, 5).toUpperCase()));
+				new Classroom(teacherId, "옛수업", "L" + UUID.randomUUID().toString().substring(0, 5).toUpperCase()));
 		Long id = jdbcTemplate.queryForObject(
 				"INSERT INTO app_user (name, name_key, secret_hash, classroom_id, role) "
 						+ "VALUES ('옛수업학생', '옛수업학생', 'h', ?, 'STUDENT') RETURNING id",

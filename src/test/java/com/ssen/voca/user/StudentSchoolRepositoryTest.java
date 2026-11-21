@@ -19,8 +19,8 @@ class StudentSchoolRepositoryTest {
 		appUserRepository.saveAndFlush(new AppUser("가", "학교조회동명", "h", "조회학교A", "조회학교a"));
 		appUserRepository.saveAndFlush(new AppUser("나", "학교조회동명", "h", "조회학교B", "조회학교b"));
 		appUserRepository.saveAndFlush(new AppUser("다", "학교조회다른이름", "h", "조회학교A", "조회학교a"));
-		// 같은 이름 키의 교사는 학생 조회에 섞이지 않는다.
-		appUserRepository.saveAndFlush(AppUser.teacher("교사", "학교조회동명", "school-scoped-teacher@example.com", "h"));
+		// 같은 학교·같은 이름 키의 교사는 학생 조회에 섞이지 않는다.
+		appUserRepository.saveAndFlush(AppUser.teacher("교사", "학교조회동명", "h", "조회학교A", "조회학교a"));
 
 		assertThat(appUserRepository.findAllBySchoolKeyAndNameKeyAndRole("조회학교a", "학교조회동명", AppUser.STUDENT))
 				.extracting(AppUser::getName).containsExactly("가");

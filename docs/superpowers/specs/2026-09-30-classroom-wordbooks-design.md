@@ -1,5 +1,7 @@
 # 수업 · 교사 단어장 · 나만의 단어장 설계
 
+> **갱신 (2026-11, #21):** 교사 이메일 로그인·교사 가입 코드(`TEACHER_INVITE_CODE`, `/api/teacher/signup|login`)는 **서버 설정 `TEACHER_ACCOUNTS`로 미리 등록한 교사 계정 + 학생과 같은 로그인**(`POST /api/auth/login`)으로 대체됐다. 아래의 교사 이메일·가입 코드 설명은 당시 설계이며 현재 동작은 README의 "교사 API"를 따른다. 참고: https://github.com/ssen-voca/ssen-server/issues/21
+
 ## 배경
 
 팀 논의(2026-09-30)로 아래 네 가지가 확정됐다. 이후 교사 계정 방식과 교사 가입 코드가 추가로 정해졌다.
@@ -88,18 +90,18 @@ CREATE TABLE classroom_word (
 
 - 액세스 토큰에 `role` claim을 추가한다. 토큰을 만들 때(로그인·리프레시) DB에서 읽은 role을 넣는다.
 - `JwtAuthenticationFilter`가 role로 권한(`ROLE_TEACHER`, `ROLE_STUDENT`)을 만든다. 지금은 권한이 비어 있다.
-- `SecurityConfig`: `/api/teacher/signup`, `/api/teacher/login`은 공개. 그 외 `/api/teacher/**`는 `TEACHER`만. 나머지는 지금과 같다.
-- **교사 가입 코드**: 환경변수 `TEACHER_INVITE_CODE`(운영은 필수, local 프로필은 기본값 있음). 상수 시간 비교한다. 잘못된 코드 입력은 `teacher-signup` 키 하나로 시도 제한에 합산한다(5회/5분). 이 때문에 누가 잠그면 모든 교사 가입이 5분간 막히지만, 가입은 드문 일이라 감수한다.
-- 교사 로그인 시도 제한은 기존 `LoginAttemptLimiter`를 재사용하고, 키는 `teacher:<이메일>`이다. 선차감·성공 시 1회 환불 규칙도 그대로다.
-- 교사 이메일은 소문자로 저장·비교한다. 비밀번호는 8자 이상, BCrypt.
+- `SecurityConfig`: (폐기, #21) `/api/teacher/signup`, `/api/teacher/login`은 공개. 그 외 `/api/teacher/**`는 `TEACHER`만. 나머지는 지금과 같다.
+- **(폐기, #21) 교사 가입 코드**: 환경변수 `TEACHER_INVITE_CODE`(운영은 필수, local 프로필은 기본값 있음). 상수 시간 비교한다. 잘못된 코드 입력은 `teacher-signup` 키 하나로 시도 제한에 합산한다(5회/5분). 이 때문에 누가 잠그면 모든 교사 가입이 5분간 막히지만, 가입은 드문 일이라 감수한다.
+- (폐기, #21) 교사 로그인 시도 제한은 기존 `LoginAttemptLimiter`를 재사용하고, 키는 `teacher:<이메일>`이다. 선차감·성공 시 1회 환불 규칙도 그대로다.
+- (폐기, #21) 교사 이메일은 소문자로 저장·비교한다. 비밀번호는 8자 이상, BCrypt.
 - 리프레시(`POST /api/auth/refresh`)는 교사·학생 공통이다.
 
 ### API
 
 | 메서드 · 경로 | 설명 | 성공 | 주요 오류 |
 |---|---|---|---|
-| `POST /api/teacher/signup` `{name, email, password, inviteCode}` | 교사 가입 | 토큰 | 400 검증, 403 가입 코드 불일치, 409 이메일 중복, 429 |
-| `POST /api/teacher/login` `{email, password}` | 교사 로그인 | 토큰 | 401, 429 |
+| `POST /api/teacher/signup` `{name, email, password, inviteCode}` (폐기, #21) | 교사 가입 | 토큰 | 400 검증, 403 가입 코드 불일치, 409 이메일 중복, 429 |
+| `POST /api/teacher/login` `{email, password}` (폐기, #21) | 교사 로그인 | 토큰 | 401, 429 |
 | `POST /api/teacher/classrooms` `{name}` | 수업 생성, 참여코드 발급 | 201 `{id, name, code, createdAt}` | 400 |
 | `GET /api/teacher/classrooms` | 내 수업 목록(최신순, wordCount는 1b에서 추가) | 200 | |
 | (1b, 잠정) `PUT /api/teacher/classrooms/{id}/words` multipart `file` | CSV로 단어장 교체 | 200 `{added, updated, removed, total}` | 400 + `errors`, 404, 413 |
@@ -180,7 +182,7 @@ CREATE TABLE classroom_word (
 
 - Vercel: 빌드 `npm run build:web`, 출력 `dist`, 모든 경로를 `index.html`로 보내는 `vercel.json` rewrite, 프로젝트 환경변수 `EXPO_PUBLIC_API_BASE_URL`(빌드 시점에 코드에 박힘).
 - 서버는 https 호스팅이 필요하다(https 페이지는 http API를 호출할 수 없다). 호스팅 업체·DB 백업·비용은 이 조각을 시작할 때 정한다(열린 질문 2).
-- 서버 `CORS_ALLOWED_ORIGINS`에 운영 주소만 넣는다(미리보기 주소는 허용하지 않는다). 운영 필수 환경변수: `JWT_SECRET`, `TEACHER_INVITE_CODE`, DB 접속 정보.
+- 서버 `CORS_ALLOWED_ORIGINS`에 운영 주소만 넣는다(미리보기 주소는 허용하지 않는다). 운영 필수 환경변수: `JWT_SECRET`, DB 접속 정보 (교사 계정은 `TEACHER_ACCOUNTS`, #21).
 
 ## 이 계획의 범위 밖
 
