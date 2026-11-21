@@ -43,7 +43,7 @@ public class AppUser {
 	@Column(name = "school_key", length = 100)
 	private String schoolKey;
 
-	// 학생이 속한 수업 (지금은 모두 null, 배정은 이후 작업. 교사도 null).
+	// 학생이 속한 수업. 참여 코드로 들어가기 전에는 null이고 교사도 null.
 	@Column(name = "classroom_id")
 	private Long classroomId;
 
@@ -70,6 +70,10 @@ public class AppUser {
 	/** 서버 설정으로 등록하는 교사. 학생과 같은 (학교, 이름, 번호)로 로그인한다. */
 	public static AppUser teacher(String name, String nameKey, String secretHash, String school, String schoolKey) {
 		return new AppUser(name, nameKey, secretHash, school, schoolKey, TEACHER);
+	}
+
+	public void joinClassroom(Long classroomId) {
+		this.classroomId = classroomId;
 	}
 
 	public void changeSecretHash(String secretHash) {
