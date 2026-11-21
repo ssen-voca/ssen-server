@@ -109,24 +109,6 @@ TEACHER_ACCOUNTS='데모학원|김선생|1234;데모학원|박선생|5678'
 
 ## 배포 (Railway)
 
-`Dockerfile`과 `railway.json`이 있어서 Railway가 저장소를 그대로 빌드·실행합니다. 서버는 Railway가 넣어 주는 `PORT`로 뜨고 헬스체크는 `/api/health`입니다. DB 마이그레이션(Flyway)은 서버가 시작할 때 자동으로 적용됩니다.
+`Dockerfile`과 `railway.json`이 있어서 Railway가 저장소를 그대로 빌드·실행합니다(헬스체크 `/api/health`, DB 마이그레이션은 서버 시작 시 자동). 환경변수, 첫 배포 확인, 백업·복원 절차는 **[docs/deploy.md](./docs/deploy.md)** 를 보세요.
 
-1. Railway에서 **New Project → Deploy from GitHub repo**로 이 저장소를 연결하고 배포 브랜치를 `develop`으로 둡니다(이후 `develop`에 머지될 때마다 자동 배포).
-2. 같은 프로젝트에 **PostgreSQL**을 추가합니다.
-3. 서버 서비스의 **Variables**에 다음을 넣습니다.
-
-| 변수 | 값 |
-|---|---|
-| `SPRING_PROFILES_ACTIVE` | `prod` |
-| `DB_URL` | `jdbc:postgresql://${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}` |
-| `DB_USERNAME` | `${{Postgres.PGUSER}}` |
-| `DB_PASSWORD` | `${{Postgres.PGPASSWORD}}` |
-| `JWT_SECRET` | 긴 무작위 문자열(예: `openssl rand -base64 48`). 바꾸면 기존 로그인이 모두 풀립니다 |
-| `TEACHER_ACCOUNTS` | 교사 계정 `학교\|이름\|번호4자리`(`;` 또는 줄바꿈 구분). 번호는 비밀이므로 Railway Variables에만 둡니다. 비워 두면 교사가 없습니다 |
-| `CORS_ALLOWED_ORIGINS` | 앱 주소(예: `https://내앱.vercel.app`). 쉼표로 여러 개 가능, 슬래시로 끝내지 않습니다 |
-
-4. **Settings → Networking → Generate Domain**으로 공개 주소를 만들고, 앱(Vercel)의 `EXPO_PUBLIC_API_BASE_URL`에 그 주소(`https://…up.railway.app`)를 넣습니다.
-
-**주의:** `SPRING_PROFILES_ACTIVE=prod`를 꼭 지정하세요. 기본 프로필(`local`)로 뜨면 개발용 교사 `테스트학원|테스트교사|0000`이 운영 DB에 등록됩니다. 또 `TEACHER_ACCOUNTS`에서 항목을 지워도 이미 등록된 계정은 삭제되지 않습니다.
-
-`JWT_SECRET`에는 기본값이 없어서 빠뜨리면 서버가 시작하지 않습니다. `TEACHER_ACCOUNTS`는 비어 있으면 교사가 없을 뿐이고, 형식이 틀리면 서버가 시작하지 않습니다. 시도 제한은 서버 메모리에 있어서 서비스를 한 개(replica 1)로만 돌려야 합니다.
+**주의:** `SPRING_PROFILES_ACTIVE=prod`를 꼭 지정하세요. 기본 프로필(`local`)로 뜨면 개발용 교사 `테스트학원|테스트교사|0000`이 운영 DB에 등록됩니다.
