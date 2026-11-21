@@ -10,11 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ssen.voca.support.TeacherFixture;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
@@ -40,8 +40,8 @@ class WordbookHardeningTest {
 	@Autowired
 	private JdbcTemplate db;
 
-	@Value("${app.teacher.invite-code}")
-	private String inviteCode;
+	@Autowired
+	private TeacherFixture teachers;
 
 	private static String word(String text, String meaning, String chapter, int padding) {
 		return "{\"id\":\"x\",\"word\":\"" + text + "\",\"chapter\":\"" + chapter + "\",\"meanings\":[\"" + meaning
@@ -68,9 +68,8 @@ class WordbookHardeningTest {
 				.andReturn().getResponse().getContentAsString()).get("id").asLong();
 	}
 
-	private String teacherToken() throws Exception {
-		return postJson("/api/teacher/signup", Map.of("name", "교사", "email", UUID.randomUUID() + "@example.com",
-				"password", "password1", "inviteCode", inviteCode)).get("accessToken").asText();
+	private String teacherToken() {
+		return teachers.create().token();
 	}
 
 	private long classroom(String teacherToken) throws Exception {

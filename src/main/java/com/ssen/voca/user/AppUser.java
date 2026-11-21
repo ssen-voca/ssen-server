@@ -29,10 +29,11 @@ public class AppUser {
 	@Column(name = "name_key", nullable = false, length = 50)
 	private String nameKey;
 
-	// 학생은 휴대폰 뒤 4자리, 교사는 비밀번호의 BCrypt 해시.
+	// 학생은 휴대폰 뒤 4자리, 교사는 서버 설정의 번호 4자리를 BCrypt로 해시한 값.
 	@Column(name = "secret_hash", nullable = false)
 	private String secretHash;
 
+	// 옛 이메일 교사 행에만 값이 있다. 새 계정은 항상 null.
 	@Column(length = 255)
 	private String email;
 
@@ -52,22 +53,26 @@ public class AppUser {
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private LocalDateTime createdAt;
 
-	private AppUser(String name, String nameKey, String secretHash, String school, String schoolKey, String email, String role) {
+	private AppUser(String name, String nameKey, String secretHash, String school, String schoolKey, String role) {
 		this.name = name;
 		this.nameKey = nameKey;
 		this.secretHash = secretHash;
 		this.school = school;
 		this.schoolKey = schoolKey;
-		this.email = email;
 		this.role = role;
 		this.createdAt = LocalDateTime.now();
 	}
 
 	public AppUser(String name, String nameKey, String secretHash, String school, String schoolKey) {
-		this(name, nameKey, secretHash, school, schoolKey, null, STUDENT);
+		this(name, nameKey, secretHash, school, schoolKey, STUDENT);
 	}
 
-	public static AppUser teacher(String name, String nameKey, String email, String secretHash) {
-		return new AppUser(name, nameKey, secretHash, null, null, email, TEACHER);
+	/** 서버 설정으로 등록하는 교사. 학생과 같은 (학교, 이름, 번호)로 로그인한다. */
+	public static AppUser teacher(String name, String nameKey, String secretHash, String school, String schoolKey) {
+		return new AppUser(name, nameKey, secretHash, school, schoolKey, TEACHER);
+	}
+
+	public void changeSecretHash(String secretHash) {
+		this.secretHash = secretHash;
 	}
 }

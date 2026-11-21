@@ -4,8 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.doReturn;
 
-import com.ssen.voca.user.AppUser;
-import com.ssen.voca.user.AppUserRepository;
+import com.ssen.voca.support.TeacherFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -20,18 +19,18 @@ class ClassroomServiceTest {
 	private ClassroomService classroomService;
 
 	@Autowired
-	private AppUserRepository appUserRepository;
+	private TeacherFixture teacherFixture;
 
 	@MockitoSpyBean
 	private ClassCodeGenerator codeGenerator;
 
-	private Long newTeacherId(String email) {
-		return appUserRepository.save(AppUser.teacher("서비스교사", "서비스교사", email, "hash")).getId();
+	private Long newTeacherId() {
+		return teacherFixture.create("서비스교사").id();
 	}
 
 	@Test
 	void createRetriesWhenTheCodeIsTaken() {
-		Long teacherId = newTeacherId("svc-retry@example.com");
+		Long teacherId = newTeacherId();
 		doReturn("AAAAAA").when(codeGenerator).generate();
 		Classroom first = classroomService.create(teacherId, "첫 수업");
 		assertThat(first.getCode()).isEqualTo("AAAAAA");
@@ -44,7 +43,7 @@ class ClassroomServiceTest {
 
 	@Test
 	void createGivesUpAfterFiveCollisions() {
-		Long teacherId = newTeacherId("svc-giveup@example.com");
+		Long teacherId = newTeacherId();
 		doReturn("CCCCCC").when(codeGenerator).generate();
 		classroomService.create(teacherId, "선점 수업");
 
@@ -54,8 +53,8 @@ class ClassroomServiceTest {
 
 	@Test
 	void listOfReturnsOnlyOwnClassroomsNewestFirst() {
-		Long teacherA = newTeacherId("svc-list-a@example.com");
-		Long teacherB = newTeacherId("svc-list-b@example.com");
+		Long teacherA = newTeacherId();
+		Long teacherB = newTeacherId();
 		classroomService.create(teacherA, "A-1");
 		classroomService.create(teacherB, "B-1");
 		classroomService.create(teacherA, "A-2");

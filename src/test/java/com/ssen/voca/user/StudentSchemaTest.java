@@ -38,12 +38,13 @@ class StudentSchemaTest {
 	}
 
 	@Test
-	void teacherDoesNotNeedASchoolOrClassroom() {
+	void teacherHasASchoolButNoClassroom() {
 		AppUser saved = appUserRepository.saveAndFlush(
-				AppUser.teacher("교사", "스키마교사학생", "schema-student-teacher@example.com", "h"));
+				AppUser.teacher("교사", "스키마교사학생", "h", "스키마 학교", "스키마학교"));
 
-		assertThat(saved.getSchool()).isNull();
-		assertThat(saved.getSchoolKey()).isNull();
+		assertThat(saved.getSchool()).isEqualTo("스키마 학교");
+		assertThat(saved.getSchoolKey()).isEqualTo("스키마학교");
+		assertThat(saved.getEmail()).isNull();
 		assertThat(saved.getClassroomId()).isNull();
 	}
 
