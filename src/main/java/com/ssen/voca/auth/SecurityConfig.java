@@ -65,6 +65,7 @@ public class SecurityConfig {
 						.requestMatchers("/api/health", "/api/auth/**", "/error").permitAll()
 						.requestMatchers("/api/teacher/**").hasRole("TEACHER")
 						.requestMatchers("/api/me/classroom").hasRole("STUDENT")
+						.requestMatchers("/api/me/withdraw").hasRole("STUDENT")
 						.anyRequest().authenticated())
 				.exceptionHandling(exception -> exception
 						.authenticationEntryPoint((request, response, authException) ->
