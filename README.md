@@ -107,6 +107,15 @@ TEACHER_ACCOUNTS='데모학원|김선생|1234;데모학원|박선생|5678'
 브랜치·커밋·PR 규칙은 [CONTRIBUTING.md](./CONTRIBUTING.md)를 반드시 읽고 따라주세요.
 `main`, `develop`에는 직접 push할 수 없으며 모든 작업은 이슈 → 브랜치 → PR 순서로 진행합니다.
 
+## CI
+
+`develop`·`main`으로 향하는 PR과 푸시마다 GitHub Actions(`.github/workflows/ci.yml`)가 돌아갑니다.
+
+- `test`: PostgreSQL 16 서비스 컨테이너를 띄우고 `./gradlew test`를 실행합니다(로컬과 같은 `localhost:5433`, `ssen/ssen/ssen`). 실패하면 테스트 리포트를 아티팩트(`test-report`)로 남깁니다.
+- `docker-build`: 배포가 쓰는 `Dockerfile`로 이미지를 빌드해 봅니다(푸시하지 않습니다).
+
+머지 전에 두 체크가 모두 통과해야 합니다. 이 체크를 필수로 거는 설정(브랜치 Ruleset)은 저장소 관리자가 합니다.
+
 ## 배포 (Railway)
 
 `Dockerfile`과 `railway.json`이 있어서 Railway가 저장소를 그대로 빌드·실행합니다(헬스체크 `/api/health`, DB 마이그레이션은 서버 시작 시 자동). 환경변수, 첫 배포 확인, 백업·복원 절차는 **[docs/deploy.md](./docs/deploy.md)** 를 보세요.
