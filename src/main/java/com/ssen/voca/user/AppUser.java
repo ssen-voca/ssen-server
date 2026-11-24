@@ -76,6 +76,10 @@ public class AppUser {
 		this.classroomId = classroomId;
 	}
 
+	public void leaveClassroom() {
+		this.classroomId = null;
+	}
+
 	public void changeSecretHash(String secretHash) {
 		this.secretHash = secretHash;
 	}

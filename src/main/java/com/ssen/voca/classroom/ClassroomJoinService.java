@@ -45,4 +45,12 @@ public class ClassroomJoinService {
 		attemptLimiter.release(key);
 		return classroom;
 	}
+
+	/** 수업에서 나간다. 수업이 없어도 오류 없이 끝난다(여러 번 불러도 같다). 계정·북마크·개인 단어는 그대로다. */
+	@Transactional
+	public void leave(Long userId) {
+		AppUser user = appUserRepository.findById(userId)
+				.orElseThrow(() -> new InvalidTokenException("존재하지 않는 사용자입니다."));
+		user.leaveClassroom();
+	}
 }
