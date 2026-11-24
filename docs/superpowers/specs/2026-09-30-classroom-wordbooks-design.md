@@ -138,6 +138,17 @@ CREATE TABLE classroom_word (
 - **전부 아니면 전무**: 오류가 하나라도 있으면 저장하지 않고 **최대 50개**의 `{row, message}`를 돌려준다. `row`는 스프레드시트에서 보이는 행 번호(제목 행이 1)다.
 - **교체 의미**: 한 트랜잭션에서 `(word_key, 챕터)`로 기존 행과 맞춰 갱신, 없으면 추가, 파일에 없는 행은 삭제한다. `position`은 파일 순서로 다시 매긴다. 같은 파일을 다시 올리면 `added=0, updated=n, removed=0`이다.
 
+### 업로드한 단어 관리 (이슈 #33)
+
+교사가 올린 단어(`word.owner_id`가 NULL, `lesson_word`로 수업에 매달림)를 조회·수정·삭제한다. 모두 `/api/teacher/**`(TEACHER 전용)이고 수업의 `teacher_id`가 자신이어야 하며, 아니면 404 `수업을 찾을 수 없어요.`다.
+
+- `GET /api/teacher/classrooms/{id}/words`: 단어 JSON 배열(학생의 `/api/me/words`와 같은 모양). 차시(lesson) 생성 순 → `number`(없으면 뒤) → `created_at, id`.
+- `PUT .../words/{wordId}`: 검증은 업로드와 같다. 단어는 원래 차시에 남고 `chapter`는 그 차시 값으로 덮어쓰며(요청 값 무시) `id`는 URL 값이다. 같은 차시에 같은 단어(대소문자·앞뒤 공백 무시, 자기 제외)가 있으면 409. id가 그대로라 학생 북마크는 유지된다.
+- `DELETE .../words/{wordId}`: `word` 행을 지운다. 북마크는 FK 연쇄로 함께 지워진다. 차시에 단어가 하나도 안 남으면 빈 lesson도 지운다. (lesson만 지우면 `word`가 남으므로 `word`를 직접 지운다.)
+- `DELETE .../chapters/{chapter}`: 차시에 매달린 `word`를 모두 지우고 lesson도 지운다. 없는 차시는 404 `차시를 찾을 수 없어요.`. 100자를 넘는 이름은 없는 차시로 보아 404다.
+- `POST .../words?replace=true`: 올린 목록에 **들어 있는 차시**에서 목록에 없는 단어(대소문자·공백 무시 비교)를 지운다. 올리지 않은 차시는 건드리지 않는다. 응답은 `{created, updated}`에 `deleted`가 더해진다(기본값에서는 `deleted` 없음). 한 트랜잭션이라 검증에 실패하면 아무것도 바뀌지 않는다. `replace`가 true/false가 아니면 400.
+- **주의**: 지운 단어의 학생 북마크는 사라지고 되돌릴 수 없다. `replace=true`로 단어를 목록에서 빼도 마찬가지다.
+
 ### 테스트
 
 `@SpringBootTest` + MockMvc + 실제 Postgres(기존 방식)로 다음을 본다.

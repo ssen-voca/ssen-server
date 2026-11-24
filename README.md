@@ -68,6 +68,11 @@
 | --- | --- | --- |
 | POST | `/api/teacher/classrooms` | 수업 생성 `{name}` → 201 `{id, name, code, createdAt}`. `code`는 6자리 참여코드 |
 | GET | `/api/teacher/classrooms` | 내 수업 목록(최신순) |
+| POST | `/api/teacher/classrooms/{id}/words` | 단어 올리기(JSON 배열) → 201 `{created, updated}`. 같은 차시의 같은 단어(대소문자·앞뒤 공백 무시)는 갱신. 쿼리 `replace=true`이면 올린 목록에 들어 있는 차시에서 목록에 없는 단어를 지우고 응답에 `deleted`가 더해짐(그 단어의 학생 북마크도 사라짐, 다른 차시는 그대로). `replace`가 true/false가 아니면 400. 전체가 한 트랜잭션 |
+| GET | `/api/teacher/classrooms/{id}/words` | 올린 단어 목록(차시 생성 순 → `number` 순, 번호 없는 단어는 뒤). 단어 JSON 배열, 남의 수업은 404 `수업을 찾을 수 없어요.` |
+| PUT | `/api/teacher/classrooms/{id}/words/{wordId}` | 단어 수정(본문은 단어 JSON, 검증은 업로드와 동일) → 200 단어 JSON. `chapter`는 원래 차시로 고정되고 `id`는 URL 값. 학생 북마크 유지. 이 수업의 단어가 아니면 404 `단어를 찾을 수 없어요.`, 같은 차시에 같은 단어가 있으면 409 `같은 단어가 이미 있어요.` |
+| DELETE | `/api/teacher/classrooms/{id}/words/{wordId}` | 단어 삭제 → 204. 학생 북마크도 함께 삭제되고, 차시의 마지막 단어였다면 빈 차시도 삭제. 이 수업의 단어가 아니면 404 |
+| DELETE | `/api/teacher/classrooms/{id}/chapters/{chapter}` | 차시(예: `Week 1`, URL 인코딩) 삭제 → 204. 매달린 단어와 북마크도 함께 삭제. 없는 차시는 404 `차시를 찾을 수 없어요.` |
 
 #### 교사 등록 (`TEACHER_ACCOUNTS`)
 

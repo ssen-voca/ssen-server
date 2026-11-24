@@ -102,31 +102,86 @@ public class WordbookController {
   db.update("DELETE FROM word WHERE id=? AND owner_id=?",wordId,uid);
  }
  // 같은 수업·같은 차시에 같은 단어(대소문자·앞뒤 공백 무시)가 이미 있으면 새로 만들지 않고 내용을 고친다. id가 그대로라 학생의 북마크도 유지된다.
+ // replace=true이면 올린 목록에 들어 있는 차시에서 올린 목록에 없는 단어를 지운다(그 단어의 학생 북마크도 같이 사라진다). 다른 차시는 건드리지 않는다.
  @PostMapping("/api/teacher/classrooms/{classroomId}/words")
  @ResponseStatus(HttpStatus.CREATED)
  @Transactional
- public Map<String,Integer> publish(Authentication auth,@PathVariable long classroomId,@RequestBody List<JsonNode> words) {
+ public Map<String,Integer> publish(Authentication auth,@PathVariable long classroomId,@RequestBody List<JsonNode> words,@RequestParam(required=false) String replace) {
   if(!db.queryForObject("SELECT EXISTS(SELECT 1 FROM classroom WHERE id=? AND teacher_id=?)",Boolean.class,classroomId,user(auth))) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"수업을 찾을 수 없어요.");
   if(words.size()>2000) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"단어가 너무 많아요.");
-  int created=0, updated=0;
+  if(replace!=null && !replace.equals("true") && !replace.equals("false")) throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"replace는 true 또는 false여야 해요.");
+  int created=0, updated=0, deleted=0;
+  Map<String,Long> lessons=new java.util.LinkedHashMap<>(); java.util.Set<String> kept=new java.util.HashSet<>();
   for(JsonNode raw:words) {
    var w=validate(raw).deepCopy(); String chapter=w.path("chapter").asText();
    db.update("INSERT INTO lesson(classroom_id,chapter) VALUES(?,?) ON CONFLICT DO NOTHING",classroomId,chapter);
    Long lesson=db.queryForObject("SELECT id FROM lesson WHERE classroom_id=? AND chapter=?",Long.class,classroomId,chapter);
+   lessons.put(chapter,lesson);
    var existing=db.queryForList("SELECT w.id FROM word w JOIN lesson_word lw ON lw.word_id=w.id WHERE lw.lesson_id=? AND lower(btrim(w.payload->>'word'))=lower(btrim(?)) ORDER BY w.created_at,w.id",String.class,lesson,w.path("word").asText());
    if(existing.isEmpty()) {
     String id=UUID.randomUUID().toString();
     ((com.fasterxml.jackson.databind.node.ObjectNode)w).put("id",id);
-    db.update("INSERT INTO word(id,payload) VALUES(?,CAST(? AS jsonb))",id,w.toString());
+    // created_at 기본값(now())은 트랜잭션 시작 시각이라 한 번에 올린 단어가 모두 같아져 올린 순서를 잃는다. 실제 시각을 써서 엑셀 순서를 지킨다.
+    db.update("INSERT INTO word(id,payload,created_at) VALUES(?,CAST(? AS jsonb),clock_timestamp())",id,w.toString());
     db.update("INSERT INTO lesson_word(lesson_id,word_id) VALUES(?,?)",lesson,id);
-    created++;
+    kept.add(id); created++;
    } else {
     String id=existing.get(0);
     ((com.fasterxml.jackson.databind.node.ObjectNode)w).put("id",id);
     db.update("UPDATE word SET payload=CAST(? AS jsonb) WHERE id=?",w.toString(),id);
-    updated++;
+    kept.add(id); updated++;
    }
   }
+  if("true".equals(replace)) {
+   for(Long lesson:lessons.values()) for(String id:db.queryForList("SELECT word_id FROM lesson_word WHERE lesson_id=?",String.class,lesson)) if(!kept.contains(id)) deleted+=db.update("DELETE FROM word WHERE id=?",id);
+   return Map.of("created",created,"updated",updated,"deleted",deleted);
+  }
   return Map.of("created",created,"updated",updated);
+ }
+ private void ownClassroom(Authentication auth,long classroomId) {
+  if(!db.queryForObject("SELECT EXISTS(SELECT 1 FROM classroom WHERE id=? AND teacher_id=?)",Boolean.class,classroomId,user(auth))) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"수업을 찾을 수 없어요.");
+ }
+ // lesson 생성 순 → 번호(없으면 뒤) → 만든 순.
+ @GetMapping("/api/teacher/classrooms/{classroomId}/words")
+ public List<JsonNode> classroomWords(Authentication auth,@PathVariable long classroomId) {
+  ownClassroom(auth,classroomId);
+  return db.query("SELECT w.payload::text FROM word w JOIN lesson_word lw ON lw.word_id=w.id JOIN lesson l ON l.id=lw.lesson_id WHERE l.classroom_id=? ORDER BY l.id,CASE WHEN jsonb_typeof(w.payload->'number')='number' THEN (w.payload->>'number')::int END NULLS LAST,w.created_at,w.id", (rs,n) -> {
+   try { return json.readTree(rs.getString(1)); } catch(Exception e) { throw new IllegalStateException(e); }
+  }, classroomId);
+ }
+ // 단어는 원래 차시에 남는다. payload의 chapter·id는 서버가 정한 값으로 덮어쓴다.
+ @PutMapping("/api/teacher/classrooms/{classroomId}/words/{wordId}")
+ @Transactional
+ public JsonNode updateClassroomWord(Authentication auth,@PathVariable long classroomId,@PathVariable String wordId,@RequestBody JsonNode raw) {
+  ownClassroom(auth,classroomId);
+  var found=db.queryForList("SELECT l.id,l.chapter FROM lesson_word lw JOIN lesson l ON l.id=lw.lesson_id WHERE l.classroom_id=? AND lw.word_id=?",classroomId,wordId);
+  if(found.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"단어를 찾을 수 없어요.");
+  var w=(com.fasterxml.jackson.databind.node.ObjectNode)validate(raw).deepCopy();
+  w.put("id",wordId).put("chapter",(String)found.get(0).get("chapter"));
+  if(db.queryForObject("SELECT EXISTS(SELECT 1 FROM word w JOIN lesson_word lw ON lw.word_id=w.id WHERE lw.lesson_id=? AND w.id<>? AND lower(btrim(w.payload->>'word'))=lower(btrim(?)))",Boolean.class,found.get(0).get("id"),wordId,w.path("word").asText())) throw new ResponseStatusException(HttpStatus.CONFLICT,"같은 단어가 이미 있어요.");
+  db.update("UPDATE word SET payload=CAST(? AS jsonb) WHERE id=?",w.toString(),wordId);
+  return w;
+ }
+ // word 행을 지우면 북마크도 지워진다. 마지막 단어였다면 빈 차시도 지운다.
+ @DeleteMapping("/api/teacher/classrooms/{classroomId}/words/{wordId}")
+ @ResponseStatus(HttpStatus.NO_CONTENT)
+ @Transactional
+ public void deleteClassroomWord(Authentication auth,@PathVariable long classroomId,@PathVariable String wordId) {
+  ownClassroom(auth,classroomId);
+  var lessons=db.queryForList("SELECT l.id FROM lesson_word lw JOIN lesson l ON l.id=lw.lesson_id WHERE l.classroom_id=? AND lw.word_id=?",Long.class,classroomId,wordId);
+  if(lessons.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"단어를 찾을 수 없어요.");
+  db.update("DELETE FROM word WHERE id=?",wordId);
+  db.update("DELETE FROM lesson WHERE id=? AND NOT EXISTS(SELECT 1 FROM lesson_word WHERE lesson_id=?)",lessons.get(0),lessons.get(0));
+ }
+ // 차시에 매달린 단어를 모두 지우고 차시도 지운다. 100자를 넘는 차시 이름은 어차피 없으므로 404다.
+ @DeleteMapping("/api/teacher/classrooms/{classroomId}/chapters/{chapter}")
+ @ResponseStatus(HttpStatus.NO_CONTENT)
+ @Transactional
+ public void deleteChapter(Authentication auth,@PathVariable long classroomId,@PathVariable String chapter) {
+  ownClassroom(auth,classroomId);
+  var lessons=db.queryForList("SELECT id FROM lesson WHERE classroom_id=? AND chapter=?",Long.class,classroomId,chapter);
+  if(lessons.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND,"차시를 찾을 수 없어요.");
+  db.update("DELETE FROM word WHERE id IN (SELECT word_id FROM lesson_word WHERE lesson_id=?)",lessons.get(0));
+  db.update("DELETE FROM lesson WHERE id=?",lessons.get(0));
  }
 }
