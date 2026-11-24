@@ -41,6 +41,10 @@ public class ClassroomJoinService {
 		if (classroom == null) {
 			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "참여 코드를 확인해 주세요.");
 		}
+		// 닫힌 수업이라고 시도 제한을 돌려주지 않는다(코드 추측 방어). 이미 속한 학생의 재참여만 허용한다.
+		if (!classroom.isJoinable() && !classroom.getId().equals(user.getClassroomId())) {
+			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "지금은 이 수업에 참여할 수 없어요. 선생님께 문의해 주세요.");
+		}
 		user.joinClassroom(classroom.getId());
 		attemptLimiter.release(key);
 		return classroom;
