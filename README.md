@@ -109,6 +109,6 @@ TEACHER_ACCOUNTS='데모학원|김선생|1234;데모학원|박선생|5678'
 
 ## 배포 (Railway)
 
-`Dockerfile`과 `railway.json`이 있어서 Railway가 저장소를 그대로 빌드·실행합니다(헬스체크 `/api/health`, DB 마이그레이션은 서버 시작 시 자동). 환경변수, 첫 배포 확인, 백업·복원 절차는 **[docs/deploy.md](./docs/deploy.md)** 를 보세요.
+`Dockerfile`과 `railway.json`이 있어서 Railway가 저장소를 그대로 빌드·실행합니다(헬스체크 `/api/health`, DB까지 보는 모니터링용 `/api/health/db`, DB 마이그레이션은 서버 시작 시 자동). 환경변수, 첫 배포 확인, 백업·복원 절차는 **[docs/deploy.md](./docs/deploy.md)** 를 보세요.
 
 **주의:** `SPRING_PROFILES_ACTIVE=prod`를 꼭 지정하세요. 기본 프로필(`local`)로 뜨면 개발용 교사 `테스트학원|테스트교사|0000`이 운영 DB에 등록됩니다.
