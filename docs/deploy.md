@@ -38,6 +38,7 @@
 
 ```bash
 curl -s $SERVER/api/health          # {"status":"UP"}
+curl -s -w ' [%{http_code}]\n' $SERVER/api/health/db   # {"status":"UP"} [200], DB가 끊기면 {"status":"DOWN"} [503]
 curl -s -o /dev/null -w '%{http_code}\n' -X POST $SERVER/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"school":"학교","name":"이름","phoneLast4":"0000"}'   # 등록한 교사 계정이면 200
@@ -47,6 +48,19 @@ curl -s -o /dev/null -w '%{http_code}\n' $SERVER/api/me/words  # 토큰 없이�
 - 개발용 교사 `테스트학원|테스트교사|0000`으로 로그인해서 **401**이 나와야 합니다. 200이면 `prod` 프로필이 적용되지 않은 것이니 바로 `SPRING_PROFILES_ACTIVE`를 확인하세요.
 - 앱 웹 주소에서 교사로 로그인해 수업을 만들고, 학생 계정으로 가입해 참여 코드로 들어가는 것까지 한 번 해 봅니다.
 - 앱 웹 주소가 아닌 출처에서 보낸 요청은 CORS로 막혀야 합니다(`Access-Control-Allow-Origin`이 앱 주소에만 붙습니다).
+
+## 2-1. 가동 모니터링
+
+두 경로의 용도가 다릅니다. 헷갈리면 서버가 불필요하게 재시작될 수 있습니다.
+
+| 경로 | 보는 것 | 쓰는 곳 |
+|---|---|---|
+| `/api/health` | 서버 프로세스가 살아 있는지만(DB를 보지 않음) | **Railway 헬스체크**(`railway.json`의 `healthcheckPath`). 배포 성공 판단과 재시작에 쓰이므로 이 경로를 그대로 둡니다 |
+| `/api/health/db` | DB 연결까지(`isValid`, 최대 2초). 끊기면 **503** `{"status":"DOWN"}` | **외부 가동 모니터링**(UptimeRobot, Better Stack 같은 서비스에서 이 주소를 1~5분마다 확인하고 503이면 알림) |
+
+- Railway 헬스체크를 `/api/health/db`로 바꾸지 마세요. DB가 잠깐 끊길 때마다 서버가 재시작됩니다.
+- 응답에는 DB 주소나 오류 내용을 담지 않습니다(원인은 서버 로그에만 남습니다). 인증 없이 열려 있으니 모니터링 간격을 너무 짧게(1분 미만) 잡지 마세요.
+- DB 연결을 기다리는 시간은 3초(`spring.datasource.hikari.connection-timeout`)라서, DB가 끊기면 `/api/health/db`는 몇 초 안에 503으로 답합니다.
 
 ## 3. 백업
 
