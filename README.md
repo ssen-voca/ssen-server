@@ -47,6 +47,7 @@
 | POST | `/api/auth/login` | 로그인 `{school, name, phoneLast4}` → 200 `{accessToken, refreshToken}`. 불일치는 401 |
 | POST | `/api/auth/refresh` | `{refreshToken}` → `{accessToken}` |
 | GET | `/api/users/me` | 내 정보 `{id, name, role, email, classroom}` (액세스 토큰 필요). `classroom`은 `{id, name, code}`이고 교사 등 수업이 없으면 null |
+| POST | `/api/me/withdraw` | 학생 회원 탈퇴 `{phoneLast4}` → 204 (학생 전용, 교사는 403). 번호를 다시 확인하고(틀리면 **403**, 앱이 로그인 만료로 오해하지 않게 401을 쓰지 않음, 로그인과 같은 5회/5분 제한), 계정·북마크·개인 단어를 지운다. 교사가 올린 수업 단어는 그대로. 탈퇴한 계정의 토큰은 모두 401이고 같은 학교·이름으로 다시 가입할 수 있다 |
 | POST | `/api/me/classroom` | 학생이 참여 코드로 수업에 들어가기 `{code}` → 200 `{id, name, code}` (학생 전용, 교사는 403). 없는 코드와 형식이 틀린 코드는 같은 404 `참여 코드를 확인해 주세요.`, 빈 값·20자 초과는 400 |
 | DELETE | `/api/me/classroom` | 학생이 수업에서 나가기 → 204 (학생 전용, 교사는 403). 수업이 없어도 204(여러 번 불러도 같음). 계정·북마크·개인 단어는 그대로이고, 교사가 올린 수업 단어는 보이지 않게 됨. 같은 코드로 다시 들어오면 다시 보임 |
 
