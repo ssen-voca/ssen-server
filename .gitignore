@@ -26,6 +26,8 @@ logs/
 .superpowers/
 
 # IDE / OS
+# Eclipse·VS Code Java 확장이 만드는 빌드 산출물(src/main/resources의 옛 사본이 들어 있다)
+bin/
 .idea/
 *.iml
 *.ipr
