@@ -26,7 +26,7 @@
 | `DB_USERNAME` | `${{Postgres.PGUSER}}` |
 | `DB_PASSWORD` | `${{Postgres.PGPASSWORD}}` |
 | `JWT_SECRET` | 긴 무작위 문자열. 바꾸면 기존 로그인이 모두 풀립니다 |
-| `TEACHER_ACCOUNTS` | `학교\|이름\|번호4자리`, 여러 명은 `;` 또는 줄바꿈으로 구분 |
+| `TEACHER_ACCOUNTS` | `학교\|이름\|번호4자리`(조교는 끝에 `\|조교`), 여러 명은 `;` 또는 줄바꿈으로 구분. 조교는 교사와 권한이 같고 표시만 다릅니다 |
 | `CLIENT_IP_HEADER` | (선택) 프록시가 접속 IP를 싣는 헤더 이름. 처음에는 비워 둡니다. 아래 "접속 IP 확인" 참고 |
 | `CORS_ALLOWED_ORIGINS` | 앱 웹 주소(예: `https://내앱.example.com`). 쉼표로 여러 개 가능, 슬래시로 끝내지 않습니다 |
 
