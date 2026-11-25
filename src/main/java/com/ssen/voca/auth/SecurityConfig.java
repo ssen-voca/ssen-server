@@ -1,5 +1,6 @@
 package com.ssen.voca.auth;
 
+import com.ssen.voca.user.AppUserRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Clock;
 import java.util.Arrays;
@@ -56,7 +57,8 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	public SecurityFilterChain securityFilterChain(HttpSecurity http, AppUserRepository appUserRepository)
+			throws Exception {
 		http
 				.csrf(csrf -> csrf.disable())
 				.cors(Customizer.withDefaults())
@@ -70,7 +72,8 @@ public class SecurityConfig {
 				.exceptionHandling(exception -> exception
 						.authenticationEntryPoint((request, response, authException) ->
 								response.sendError(HttpServletResponse.SC_UNAUTHORIZED)))
-				.addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
+				.addFilterBefore(new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class)
+				.addFilterAfter(new TeacherActiveFilter(appUserRepository), JwtAuthenticationFilter.class);
 
 		return http.build();
 	}

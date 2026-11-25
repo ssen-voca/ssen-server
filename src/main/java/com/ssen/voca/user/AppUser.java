@@ -50,6 +50,10 @@ public class AppUser {
 	@Column(nullable = false, length = 20)
 	private String role;
 
+	// 서버 설정에서 빠진 교사. 비활성이면 로그인·갱신·이미 받은 토큰이 모두 막힌다.
+	@Column(nullable = false)
+	private boolean disabled;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private LocalDateTime createdAt;
 
@@ -82,5 +86,13 @@ public class AppUser {
 
 	public void changeSecretHash(String secretHash) {
 		this.secretHash = secretHash;
+	}
+
+	public void disable() {
+		this.disabled = true;
+	}
+
+	public void enable() {
+		this.disabled = false;
 	}
 }

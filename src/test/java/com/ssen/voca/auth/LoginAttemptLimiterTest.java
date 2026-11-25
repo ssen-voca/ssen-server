@@ -45,6 +45,18 @@ class LoginAttemptLimiterTest {
 	}
 
 	@Test
+	void perKeyLimitOverridesTheDefault() {
+		for (int i = 0; i < 8; i++) {
+			limiter.tryAcquire("wide", 8);
+		}
+
+		assertThatThrownBy(() -> limiter.tryAcquire("wide", 8)).isInstanceOf(TooManyAttemptsException.class);
+		// 같은 한도를 쓰는 기본 오버로드는 그대로 5회다.
+		acquire("a", 5);
+		assertThatThrownBy(() -> limiter.tryAcquire("a")).isInstanceOf(TooManyAttemptsException.class);
+	}
+
+	@Test
 	void otherKeysAreUnaffected() {
 		acquire("a", 5);
 
