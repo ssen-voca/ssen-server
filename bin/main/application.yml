@@ -11,9 +11,6 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/ssen}
     username: ${DB_USERNAME:ssen}
     password: ${DB_PASSWORD:ssen}
-    hikari:
-      # 기본 30초는 DB가 끊겼을 때 요청이 너무 오래 매달린다. 헬스체크(/api/health/db)도 이 시간 안에 503을 돌려준다.
-      connection-timeout: 3000
   jpa:
     hibernate:
       ddl-auto: validate
