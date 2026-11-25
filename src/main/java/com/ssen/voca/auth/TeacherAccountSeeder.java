@@ -49,6 +49,7 @@ public class TeacherAccountSeeder implements ApplicationRunner {
 		int created = 0;
 		int rotated = 0;
 		int reenabled = 0;
+		int repositioned = 0;
 		int number = 0;
 		Set<String> configured = new HashSet<>();
 		for (TeacherAccounts.Entry entry : entries) {
@@ -72,13 +73,19 @@ public class TeacherAccountSeeder implements ApplicationRunner {
 						nameKey,
 						passwordEncoder.encode(entry.pin()),
 						Schools.display(entry.school()),
-						schoolKey));
+						schoolKey,
+						entry.position()));
 				created++;
 			} else {
 				for (AppUser user : existing) {
 					if (user.isDisabled()) {
 						user.enable();
 						reenabled++;
+					}
+					// 역할(교사/조교)이 설정과 다르면 맞춘다. 표시용이라 권한은 그대로다.
+					if (!entry.position().equals(user.position())) {
+						user.changeTeacherPosition(entry.position());
+						repositioned++;
 					}
 					if (!passwordEncoder.matches(entry.pin(), user.getSecretHash())) {
 						user.changeSecretHash(passwordEncoder.encode(entry.pin()));
@@ -100,8 +107,8 @@ public class TeacherAccountSeeder implements ApplicationRunner {
 				disabled++;
 			}
 		}
-		log.info("교사 계정 {}개 확인: 새로 만든 {}개, 번호를 바꾼 {}개, 다시 켠 {}개, 설정에서 빠져 끈 {}개",
-				entries.size(), created, rotated, reenabled, disabled);
+		log.info("교사 계정 {}개 확인: 새로 만든 {}개, 번호를 바꾼 {}개, 역할을 바꾼 {}개, 다시 켠 {}개, 설정에서 빠져 끈 {}개",
+				entries.size(), created, rotated, repositioned, reenabled, disabled);
 	}
 
 	private static String identity(String schoolKey, String nameKey) {

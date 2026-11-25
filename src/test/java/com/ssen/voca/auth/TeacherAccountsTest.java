@@ -101,4 +101,31 @@ class TeacherAccountsTest {
 		}
 		assertThat(TeacherAccounts.parse("가학원|김선생|" + pin).get(0).toString()).doesNotContain(pin);
 	}
+
+	@Test
+	void roleDefaultsToTeacherAndAcceptsKoreanOrEnglishNames() {
+		List<TeacherAccounts.Entry> entries = TeacherAccounts.parse(
+				"가학원|김선생|1234;가학원|박조교|5678|조교;가학원|이선생|1111|교사;가학원|최조교|2222| assistant ;가학원|정선생|3333|TEACHER");
+
+		assertThat(entries).extracting(TeacherAccounts.Entry::position)
+				.containsExactly("TEACHER", "ASSISTANT", "TEACHER", "ASSISTANT", "TEACHER");
+	}
+
+	@Test
+	void unknownOrBlankRoleNamesTheEntryNumber() {
+		assertThatThrownBy(() -> TeacherAccounts.parse("가학원|김선생|1234;가학원|박조교|5678|관리자"))
+				.isInstanceOf(IllegalStateException.class)
+				.hasMessageContaining("2번")
+				.hasMessageContaining("조교");
+		assertThatThrownBy(() -> TeacherAccounts.parse("가학원|김선생|1234|"))
+				.isInstanceOf(IllegalStateException.class).hasMessageContaining("1번");
+		assertThatThrownBy(() -> TeacherAccounts.parse("가학원|김선생|1234|조교|추가"))
+				.isInstanceOf(IllegalStateException.class).hasMessageContaining("1번");
+	}
+
+	@Test
+	void entryToStringHidesThePinButShowsTheRole() {
+		assertThat(new TeacherAccounts.Entry("가학원", "박조교", "5678", "ASSISTANT").toString())
+				.doesNotContain("5678").contains("ASSISTANT");
+	}
 }

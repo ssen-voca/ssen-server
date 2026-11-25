@@ -18,6 +18,9 @@ public class AppUser {
 
 	public static final String STUDENT = "STUDENT";
 	public static final String TEACHER = "TEACHER";
+	/** 교사 계정의 표시 구분. 권한은 같다. */
+	public static final String POSITION_TEACHER = "TEACHER";
+	public static final String POSITION_ASSISTANT = "ASSISTANT";
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -50,6 +53,10 @@ public class AppUser {
 	@Column(nullable = false, length = 20)
 	private String role;
 
+	// 교사 계정만: TEACHER 또는 ASSISTANT(조교). null이면 교사로 본다. 권한은 role이 정하고 이 값은 표시용이다.
+	@Column(name = "teacher_position", length = 20)
+	private String teacherPosition;
+
 	// 서버 설정에서 빠진 교사. 비활성이면 로그인·갱신·이미 받은 토큰이 모두 막힌다.
 	@Column(nullable = false)
 	private boolean disabled;
@@ -76,12 +83,31 @@ public class AppUser {
 		return new AppUser(name, nameKey, secretHash, school, schoolKey, TEACHER);
 	}
 
+	public static AppUser teacher(
+			String name, String nameKey, String secretHash, String school, String schoolKey, String position) {
+		AppUser teacher = teacher(name, nameKey, secretHash, school, schoolKey);
+		teacher.changeTeacherPosition(position);
+		return teacher;
+	}
+
 	public void joinClassroom(Long classroomId) {
 		this.classroomId = classroomId;
 	}
 
 	public void leaveClassroom() {
 		this.classroomId = null;
+	}
+
+	/** 교사 계정의 표시 구분. 교사이면 TEACHER, 조교이면 ASSISTANT를 돌려준다. 학생은 null. */
+	public String position() {
+		if (!TEACHER.equals(role)) {
+			return null;
+		}
+		return teacherPosition == null ? POSITION_TEACHER : teacherPosition;
+	}
+
+	public void changeTeacherPosition(String position) {
+		this.teacherPosition = POSITION_TEACHER.equals(position) ? null : position;
 	}
 
 	public void changeSecretHash(String secretHash) {
