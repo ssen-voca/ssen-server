@@ -35,7 +35,12 @@ public class LoginAttemptLimiter {
 	}
 
 	/** 창에 이미 maxAttempts회가 있으면 TooManyAttemptsException (거절된 시도는 세지 않는다). 아니면 1회 차감. */
-	public synchronized void tryAcquire(String key) {
+	public void tryAcquire(String key) {
+		tryAcquire(key, maxAttempts);
+	}
+
+	/** {@link #tryAcquire(String)}와 같고 한도만 키마다 따로 받는다 (계정 전체 상한처럼 더 느슨한 키용). */
+	public synchronized void tryAcquire(String key, int maxAttempts) {
 		long now = clock.millis();
 		Window window = windows.get(key);
 		if (window == null || isExpired(window, now)) {

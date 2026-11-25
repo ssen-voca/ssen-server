@@ -2,7 +2,9 @@ package com.ssen.voca.auth;
 
 import com.ssen.voca.user.AppUser;
 import com.ssen.voca.user.AppUserRepository;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,7 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 서버 설정({@code app.teacher.accounts})의 교사 계정을 시작할 때 DB에 맞춘다. 설정이 기준이라 번호를 바꾸면 해시가 바뀐다.
- * 설정에서 뺀 교사는 건드리지 않는다(계정이 남아 있으므로 회수하려면 DB에서 직접 지워야 한다).
+ * 설정에서 뺀 교사는 지우지 않고 비활성으로 표시해 로그인·갱신·이미 받은 토큰을 막고, 다시 넣으면 활성으로 되돌린다.
+ * 설정이 비어 있으면 환경 변수를 실수로 비운 경우일 수 있어 아무도 비활성화하지 않는다.
  */
 @Component
 public class TeacherAccountSeeder implements ApplicationRunner {
@@ -45,11 +48,14 @@ public class TeacherAccountSeeder implements ApplicationRunner {
 	void seed(List<TeacherAccounts.Entry> entries) {
 		int created = 0;
 		int rotated = 0;
+		int reenabled = 0;
 		int number = 0;
+		Set<String> configured = new HashSet<>();
 		for (TeacherAccounts.Entry entry : entries) {
 			number++;
 			String schoolKey = Schools.key(entry.school());
 			String nameKey = Names.key(entry.name());
+			configured.add(identity(schoolKey, nameKey));
 			// 같은 (학교, 이름, 번호)의 학생이 있으면 로그인 때 그 학생이 교사가 되어 버리므로 시작을 막는다.
 			boolean studentCollides = appUserRepository
 					.findAllBySchoolKeyAndNameKeyAndRole(schoolKey, nameKey, AppUser.STUDENT).stream()
@@ -70,6 +76,10 @@ public class TeacherAccountSeeder implements ApplicationRunner {
 				created++;
 			} else {
 				for (AppUser user : existing) {
+					if (user.isDisabled()) {
+						user.enable();
+						reenabled++;
+					}
 					if (!passwordEncoder.matches(entry.pin(), user.getSecretHash())) {
 						user.changeSecretHash(passwordEncoder.encode(entry.pin()));
 						rotated++;
@@ -77,8 +87,24 @@ public class TeacherAccountSeeder implements ApplicationRunner {
 				}
 			}
 		}
-		if (!entries.isEmpty()) {
-			log.info("교사 계정 {}개 확인: 새로 만든 {}개, 번호를 바꾼 {}개", entries.size(), created, rotated);
+		if (entries.isEmpty()) {
+			log.warn("TEACHER_ACCOUNTS가 비어 있어 기존 교사 계정을 그대로 둬요");
+			return;
 		}
+		int disabled = 0;
+		for (AppUser teacher : appUserRepository.findAllByRole(AppUser.TEACHER)) {
+			boolean listed = teacher.getSchoolKey() != null
+					&& configured.contains(identity(teacher.getSchoolKey(), teacher.getNameKey()));
+			if (!listed && !teacher.isDisabled()) {
+				teacher.disable();
+				disabled++;
+			}
+		}
+		log.info("교사 계정 {}개 확인: 새로 만든 {}개, 번호를 바꾼 {}개, 다시 켠 {}개, 설정에서 빠져 끈 {}개",
+				entries.size(), created, rotated, reenabled, disabled);
+	}
+
+	private static String identity(String schoolKey, String nameKey) {
+		return schoolKey + "\u0000" + nameKey;
 	}
 }

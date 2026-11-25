@@ -14,6 +14,11 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 
 	List<AppUser> findAllBySchoolKeyAndNameKeyAndRoleIn(String schoolKey, String nameKey, Collection<String> roles);
 
+	List<AppUser> findAllByRole(String role);
+
+	// 교사 토큰 요청마다 쓰므로 행 전체 대신 존재 여부만 본다.
+	boolean existsByIdAndDisabledFalse(Long id);
+
 	int countByClassroomIdAndRole(Long classroomId, String role);
 
 	List<AppUser> findAllByClassroomIdAndRoleOrderBySchoolKeyAscNameKeyAscIdAsc(Long classroomId, String role);

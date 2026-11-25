@@ -102,15 +102,57 @@ class TeacherAccountSeederTest {
 	}
 
 	@Test
-	void teachersMissingFromTheConfigAreNotTouched() {
+	void teachersMissingFromTheConfigAreDisabledButNotDeleted() {
 		seeder.seed(List.of(
 				new TeacherAccounts.Entry(school, "김선생", "1234"),
 				new TeacherAccounts.Entry(school, "박선생", "5678")));
 
 		seeder.seed(List.of(new TeacherAccounts.Entry(school, "김선생", "1234")));
 
+		assertThat(teachers("김선생").get(0).isDisabled()).isFalse();
 		assertThat(teachers("박선생")).hasSize(1);
+		assertThat(teachers("박선생").get(0).isDisabled()).isTrue();
 		assertThat(passwordEncoder.matches("5678", teachers("박선생").get(0).getSecretHash())).isTrue();
+	}
+
+	@Test
+	void puttingATeacherBackReenablesTheSameAccount() {
+		seeder.seed(List.of(
+				new TeacherAccounts.Entry(school, "김선생", "1234"),
+				new TeacherAccounts.Entry(school, "박선생", "5678")));
+		Long id = teachers("박선생").get(0).getId();
+		seeder.seed(List.of(new TeacherAccounts.Entry(school, "김선생", "1234")));
+
+		seeder.seed(List.of(
+				new TeacherAccounts.Entry(school, "김선생", "1234"),
+				new TeacherAccounts.Entry(school, "박선생", "5678")));
+
+		assertThat(teachers("박선생")).hasSize(1);
+		assertThat(teachers("박선생").get(0).getId()).isEqualTo(id);
+		assertThat(teachers("박선생").get(0).isDisabled()).isFalse();
+	}
+
+	@Test
+	void emptyConfigDisablesNobody() {
+		seeder.seed(List.of(new TeacherAccounts.Entry(school, "김선생", "1234")));
+
+		seeder.seed(List.of());
+
+		assertThat(teachers("김선생").get(0).isDisabled()).isFalse();
+	}
+
+	@Test
+	void studentsWithTheSameSchoolAndNameAreNeverDisabled() {
+		AppUser student = appUserRepository.saveAndFlush(new AppUser(
+				"박선생", "박선생", passwordEncoder.encode("1111"), school, Schools.key(school)));
+		seeder.seed(List.of(
+				new TeacherAccounts.Entry(school, "김선생", "1234"),
+				new TeacherAccounts.Entry(school, "박선생", "5678")));
+
+		seeder.seed(List.of(new TeacherAccounts.Entry(school, "김선생", "1234")));
+
+		assertThat(teachers("박선생").get(0).isDisabled()).isTrue();
+		assertThat(appUserRepository.findById(student.getId()).orElseThrow().isDisabled()).isFalse();
 	}
 
 	@Test

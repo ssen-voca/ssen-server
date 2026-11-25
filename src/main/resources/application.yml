@@ -29,6 +29,10 @@ app:
   auth:
     max-attempts: 5
     attempt-window-millis: 300000
+    # 한 계정(학교, 이름)에 여러 IP로 번호를 대입하는 것을 막는 계정 전체 상한. 같은 창을 쓴다.
+    account-max-attempts: 100
+    # 프록시가 접속 IP를 싣는 헤더(예: X-Forwarded-For). 비어 있으면 연결 주소를 쓴다.
+    client-ip-header: ${CLIENT_IP_HEADER:}
   teacher:
     # 교사 계정(학교|이름|번호4자리를 ; 또는 줄바꿈으로 구분). 시작할 때 DB에 등록한다.
     accounts: ${TEACHER_ACCOUNTS:}
